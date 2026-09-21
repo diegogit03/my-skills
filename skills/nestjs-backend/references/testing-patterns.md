@@ -63,12 +63,10 @@ import { Test } from '@nestjs/testing'
 import type { TestingModule } from '@nestjs/testing'
 import { WalletService } from './wallet.service'
 import { WalletRepository } from './wallet.repository'
-import { EVENT_PUBLISHER } from '@common/contracts'
 
 describe('WalletService', () => {
   let service: WalletService
   let walletRepository: Record<'findById' | 'findAll' | 'save' | 'delete', ReturnType<typeof vi.fn>>
-  let events: { publish: ReturnType<typeof vi.fn> }
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -78,31 +76,22 @@ describe('WalletService', () => {
           provide: WalletRepository,
           useValue: { findById: vi.fn(), findAll: vi.fn(), save: vi.fn(), delete: vi.fn() },
         },
-        {
-          provide: EVENT_PUBLISHER,
-          useValue: { publish: vi.fn() },
-        },
       ],
     }).compile()
 
     service = module.get(WalletService)
     walletRepository = module.get(WalletRepository)
-    events = module.get(EVENT_PUBLISHER)
   })
 
   afterEach(() => vi.clearAllMocks())
 
-  it('cria uma wallet e publica evento', async () => {
+  it('cria uma wallet', async () => {
     walletRepository.save.mockImplementation(async (wallet) => wallet)
 
     const result = await service.create('user-1', 'Main')
 
     expect(result.name).toBe('Main')
     expect(walletRepository.save).toHaveBeenCalledTimes(1)
-    expect(events.publish).toHaveBeenCalledWith(
-      'finance.wallet.created',
-      expect.objectContaining({ walletId: expect.any(String) }),
-    )
   })
 
   it('lança erro quando a wallet não é encontrada', async () => {
@@ -189,10 +178,6 @@ export function createMockRepository() {
   }
 }
 
-export function createMockEventPublisher() {
-  return { publish: vi.fn() }
-}
-
 export function createMockService(methods: string[]) {
   return Object.fromEntries(methods.map((m) => [m, vi.fn()]))
 }
@@ -203,7 +188,7 @@ export function createMockService(methods: string[]) {
 | Nível de Teste | O Que Testar                      | Onde                                             | Dependências             |
 | -------------- | --------------------------------- | ------------------------------------------------ | ------------------------ |
 | Entidade       | Comportamento de domínio (rich)   | `src/modules/[m]/<aggregate>/*.spec.ts`          | Nenhuma (objeto puro)    |
-| Serviço        | Regras de negócio via serviços    | `src/modules/[m]/<aggregate>/*.spec.ts`          | Repos + eventos mockados |
+| Serviço        | Regras de negócio via serviços    | `src/modules/[m]/<aggregate>/*.spec.ts`          | Repos mockados |
 | E2E            | Ciclo de vida HTTP completo       | `src/modules/[m]/__tests__/`                     | App completo, banco de teste |
 
 ## Configuração

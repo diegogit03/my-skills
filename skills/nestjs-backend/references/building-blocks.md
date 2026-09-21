@@ -19,19 +19,16 @@ Serviços `@Injectable()` vivem na pasta do agregado, lado a lado com entity, re
 import { Injectable } from '@nestjs/common'
 import { WalletRepository } from './wallet.repository'
 import { Wallet } from './wallet.entity'
-import { EVENT_PUBLISHER } from '@common/contracts'
 
 @Injectable()
 export class WalletService {
   constructor(
     private readonly walletRepository: WalletRepository,
-    @Inject(EVENT_PUBLISHER) private readonly events: EventPublisher,
   ) {}
 
   async create(userId: string, name: string): Promise<Wallet> {
     const wallet = new Wallet(generateId(), userId, name)
     await this.walletRepository.save(wallet)
-    await this.events.publish('finance.wallet.created', { walletId: wallet.id, userId })
     return wallet
   }
 

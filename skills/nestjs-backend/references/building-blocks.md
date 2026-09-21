@@ -17,8 +17,8 @@ Serviços `@Injectable()` em `core/service/` encapsulam a lógica de negócio e 
 ```typescript
 // src/modules/finance/core/service/wallet.service.ts
 import { Injectable } from '@nestjs/common'
-import { WalletRepository } from '../../persistence/repository/wallet.repository'
-import { Wallet } from '../entities/wallet.entity'
+import { WalletRepository } from '@modules/finance'
+import { Wallet } from './wallet.entity'
 import { EVENT_PUBLISHER } from '@common/contracts'
 
 @Injectable()
@@ -111,7 +111,7 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { BaseRepository } from '@common/typeorm/base.repository'
-import { Wallet } from '../../core/entities/wallet.entity'
+import { Wallet } from '@modules/finance'
 
 @Injectable()
 export class WalletRepository extends BaseRepository<Wallet> {

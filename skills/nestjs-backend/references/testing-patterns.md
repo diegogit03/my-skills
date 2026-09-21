@@ -62,7 +62,7 @@ import { describe, it, beforeEach, afterEach, vi, expect } from 'vitest'
 import { Test } from '@nestjs/testing'
 import type { TestingModule } from '@nestjs/testing'
 import { WalletService } from './wallet.service'
-import { WalletRepository } from '../../../persistence/repository/wallet.repository'
+import { WalletRepository } from '@modules/finance'
 import { EVENT_PUBLISHER } from '@common/contracts'
 
 describe('WalletService', () => {
@@ -124,7 +124,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { INestApplication, ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { AppModule } from '../../../app.module'
+import { AppModule } from '@modules/app'
 
 describe('Finance (e2e)', () => {
   let app: INestApplication

@@ -20,7 +20,7 @@ src/
 test/                      # Testes E2E
 ```
 
-Aliase de import:
+Aliase de import (sempre use estes paths, nunca caminhos relativos entre módulos):
 
 - `@common/*` → `src/common/*`
 - `@modules/<nome>` → `src/modules/<nome>` (apenas via barrel `index.ts`)

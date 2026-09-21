@@ -99,7 +99,7 @@ export function hashToken(token: string): string {
 ```typescript
 // src/modules/identity/core/service/session.service.ts
 import { Injectable } from '@nestjs/common'
-import { SessionRepository } from '../../persistence/repository/session.repository'
+import { SessionRepository } from '@modules/identity'
 
 @Injectable()
 export class SessionService {
@@ -155,7 +155,7 @@ Guard nativo NestJS — sem Passport. Extrai o `Bearer` token, valida contra o b
 // src/common/infrastructure/guards/session-auth.guard.ts
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator'
+import { IS_PUBLIC_KEY } from '@common/decorators/public.decorator'
 import { SessionService } from '@modules/identity'
 
 @Injectable()
@@ -240,7 +240,7 @@ Repositório como **classe concreta** `@Injectable()` em `persistence/repository
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { Session } from '../../core/entities/session.entity'
+import { Session } from '@modules/identity'
 
 @Injectable()
 export class SessionRepository {

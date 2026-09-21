@@ -18,7 +18,7 @@ Padrão para módulos com domínio complexo.
 finance/
   core/
     service/               # Serviços (orquestradores)
-    entities/              # Entidades TypeORM (entidades de domínio)
+    entity/                # Entidades TypeORM (entidades de domínio)
   http/
     controllers/           # Controllers, DTOs
   persistence/

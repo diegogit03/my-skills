@@ -33,7 +33,7 @@ Módulos usam **Layer Architecture** (ver `references/architecture-patterns.md`)
 finance/
   core/                    # Lógica de negócio
     service/               # Serviços (orquestradores)
-    entities/              # Entidades TypeORM (entidades de domínio)
+    entity/                # Entidades TypeORM (entidades de domínio)
   http/
     controllers/           # Controllers, DTOs
   persistence/

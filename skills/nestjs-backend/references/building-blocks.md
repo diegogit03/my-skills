@@ -47,10 +47,10 @@ export class WalletService {
 
 ## 2. Entidades
 
-As entidades de domínio são as **próprias entidades TypeORM** — não há entidade de domínio pura separada. Uma única classe por entidade, em `core/entities/`, com decorators TypeORM e podendo conter métodos de domínio.
+As entidades de domínio são as **próprias entidades TypeORM** — não há entidade de domínio pura separada. Uma única classe por entidade, em `core/entity/`, com decorators TypeORM e podendo conter métodos de domínio.
 
 ```typescript
-// src/modules/finance/core/entities/wallet.entity.ts
+// src/modules/finance/core/entity/wallet.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm'
 
 @Entity('finance_wallets')

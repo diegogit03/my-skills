@@ -23,7 +23,7 @@ O padrão recomendado é **Personal Access Token (PAT) opaco** — tokens aleat�
 Tokens pertencem ao módulo de identidade e são prefixados com o nome do módulo. A entidade de domínio é a **própria entidade TypeORM** — não há entidade de domínio pura separada; métodos de domínio (como `isActive`) vivem na própria entidade.
 
 ```typescript
-// src/modules/identity/core/entities/session.entity.ts
+// src/modules/identity/core/entity/session.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm'
 
 @Entity('sessions')
@@ -233,7 +233,7 @@ export class RolesGuard implements CanActivate {
 
 ## 7. Implementação do Repositório com TypeORM
 
-Repositório como **classe concreta** `@Injectable()` em `persistence/repository/` — sem interface nem token Symbol. Trabalha diretamente com a entidade TypeORM `Session` (core/entities/session.entity.ts), que também é a entidade de domínio.
+Repositório como **classe concreta** `@Injectable()` em `persistence/repository/` — sem interface nem token Symbol. Trabalha diretamente com a entidade TypeORM `Session` (core/entity/session.entity.ts), que também é a entidade de domínio.
 
 ```typescript
 // src/modules/identity/persistence/repository/session.repository.ts
@@ -274,7 +274,7 @@ export class SessionRepository {
 ```typescript
 // src/modules/identity/identity.module.ts
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { Session } from './core/entities/session.entity'
+import { Session } from './core/entity/session.entity'
 
 @Module({
   imports: [TypeOrmModule.forFeature([Session])],

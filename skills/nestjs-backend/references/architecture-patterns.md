@@ -34,7 +34,6 @@ finance/
       transaction.e2e-spec.ts
   migrations/                # Migrações do módulo
   finance.module.ts
-  index.ts                   # exports públicos do módulo (facade + module)
 ```
 
 ---
@@ -45,7 +44,6 @@ finance/
 - **Profundidade ≤ 2.** Nunca pastas de camada técnica (`core/`, `http/`, `persistence/`).
 - **Regra de dependência mantida por sufixo:** controller → service → entity/repositório. As dependências apontam para o domínio, só que expressas por co-localização.
 - **E2E por agregado** em `<aggregate>/__tests__/` (ver `references/testing-patterns.md`).
-- **Barrel `index.ts`:** exporta apenas a facade/service público e o module class — nunca entities, repositories ou controllers.
 - **Service como unidade default:** agregado com muitos arquivos → quebre em sub-agregados dentro do mesmo módulo.
 
 ## 3. Quando separar em subdomínio

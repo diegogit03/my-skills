@@ -10,8 +10,8 @@ description: Orientação para construção de APIs Backend com Nest.JS
 ```
 src/
   common/                  # Shared kernel — nada de lógica de negócio aqui
-    contracts/             # Contratos entre módulos (interfaces de public API)
-    infrastructure/        # Guards, decorators, testing utils
+    contracts/             # Contratos entre módulos (interfaces de public API, eventos)
+    infrastructure/        # Publishers, guards, decorators, testing utils
   modules/                 # Módulos de domínio
     finance/
     identity/
@@ -65,6 +65,6 @@ finance/
 | ------------- | ----------------------------------- | -------------------------------------------------- |
 | Autenticação  | `references/authentication.md`      | Configurar auth: Personal Access Token, guards e decorators |
 | Testes        | `references/testing-patterns.md`    | Escrever testes de entidade, serviço ou E2E (Vitest) |
-| Comunicação   | `references/module-communication.md`| Chamadas síncronas entre módulos (public API)   |
+| Comunicação   | `references/module-communication.md`| Chamadas síncronas (public API) ou eventos entre módulos   |
 | Arquitetura   | `references/architecture-patterns.md` | Layer architecture e feature folders: estrutura, escolha do padrão e registro do módulo |
 | Building Blocks | `references/building-blocks.md`     | Serviços, entidades TypeORM e repositórios (incl. base repository) |

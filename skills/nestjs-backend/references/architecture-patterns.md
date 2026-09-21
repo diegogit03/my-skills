@@ -1,59 +1,62 @@
 # Padrões de Arquitetura de Módulo
 
-Cada módulo usa **um** destes padrões — nunca misture os dois dentro do mesmo módulo. Para os componentes fundamentais (serviços, entidades e repositórios), ver `references/building-blocks.md`.
+Módulos seguem **Feature Folders** organizados por **flat-by-aggregate**: 1 conceito de negócio (agregado) = 1 pasta, com as camadas técnicas como sufixos de arquivo — não como pastas. Para os componentes fundamentais (serviços, entidades e repositórios), ver `references/building-blocks.md`.
 
 ## Sumário
 
-1. Layer Architecture (linha ~13)
-2. Feature Folders (linha ~35)
-3. Como Escolher (linha ~55)
+1. Feature Folders — Flat-by-Aggregate (linha ~10)
+2. Regras do layout flat (linha ~40)
+3. Quando separar em subdomínio (linha ~60)
 
 ---
 
-## 1. Layer Architecture
+## 1. Feature Folders — Flat-by-Aggregate
 
-Padrão para módulos com domínio complexo.
-
-```
-finance/
-  core/
-    service/               # Serviços (orquestradores)
-    entity/                # Entidades TypeORM (entidades de domínio)
-  http/
-    controllers/           # Controllers, DTOs
-  persistence/
-    migrations/            # Migrações do módulo
-    repository/            # Repositórios (classes concretas)
-  finance.module.ts
-```
-
----
-
-## 2. Feature Folders
-
-Padrão para módulos simples ou majoritariamente CRUD. Cada feature é autocontida com service + controller lado a lado.
+Inspirado em [evolutionary-modular-architecture](../../inspirations/evolutionary-modular-architecture/references/flat-by-aggregate.md): `ls module/` revela o domínio (Screaming Architecture), não o framework.
 
 ```
 finance/
   wallets/
+    wallet.entity.ts
+    wallet.repository.ts
     wallet.service.ts
     wallet.controller.ts
+    wallet.dto.ts
+    __tests__/
+      wallet.e2e-spec.ts
   transactions/
+    transaction.entity.ts
+    transaction.repository.ts
     transaction.service.ts
     transaction.controller.ts
+    transaction.dto.ts
+    __tests__/
+      transaction.e2e-spec.ts
+  migrations/                # Migrações do módulo
   finance.module.ts
+  index.ts                   # exports públicos do módulo (facade + module)
 ```
 
 ---
 
-## 3. Como Escolher
+## 2. Regras do layout flat
 
-| Critério                                  | Layer Architecture | Feature Folders |
-| ----------------------------------------- | ------------------ | --------------- |
-| Regras de negócio ricas, invariantes      | ✅                 | ❌              |
-| Múltiplas entidades relacionadas          | ✅                 | ❌              |
-| Majoritariamente CRUD                     | ❌ over-engineering| ✅              |
-| Features independentes e simples          | ❌ over-engineering| ✅              |
-| Serviços com orquestração complexa        | ✅                 | ⚠️ se crescer, migre |
+- **1 agregado = 1 pasta.** Todo o código de produção do agregado vive junto; camadas técnicas viram sufixos (`.entity.ts`, `.repository.ts`, `.service.ts`, `.controller.ts`).
+- **Profundidade ≤ 2.** Nunca pastas de camada técnica (`core/`, `http/`, `persistence/`).
+- **Regra de dependência mantida por sufixo:** controller → service → entity/repositório. As dependências apontam para o domínio, só que expressas por co-localização.
+- **E2E por agregado** em `<aggregate>/__tests__/` (ver `references/testing-patterns.md`).
+- **Barrel `index.ts`:** exporta apenas a facade/service público e o module class — nunca entities, repositories ou controllers.
+- **Service como unidade default:** agregado com muitos arquivos → quebre em sub-agregados dentro do mesmo módulo.
 
-**Regra prática:** comece com Feature Folders; quando um módulo acumular regras de negócio complexas, múltiplas entidades e necessidade de testar serviços isolados, migre para Layer Architecture.
+## 3. Quando separar em subdomínio
+
+Use estrutura por subdomínio (profundidade 3: `<module>/<subdomain>/<aggregate>/`) apenas quando **4+ de 6** critérios se aplicam:
+
+1. Personas de usuário diferentes (admin vs cliente)?
+2. Modelos de autorização diferentes?
+3. Modelos de execução diferentes (REST vs fila vs GraphQL)?
+4. Características de escala diferentes (leitura vs escrita, CPU vs I/O)?
+5. Poderia ser implantado independentemente?
+6. Pode falhar isoladamente?
+
+**Default: flat.** Red flags para NÃO dividir: "parece grande demais", "para facilitar achar código" (resolva com nomes de agregado, não pastas de camada), features fortemente acopladas, espelhar o organograma.

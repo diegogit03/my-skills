@@ -23,7 +23,7 @@ O padrão recomendado é **Personal Access Token (PAT) opaco** — tokens aleat�
 Tokens pertencem ao módulo de identidade e são prefixados com o nome do módulo. A entidade de domínio é a **própria entidade TypeORM** — não há entidade de domínio pura separada; métodos de domínio (como `isActive`) vivem na própria entidade.
 
 ```typescript
-// src/modules/identity/core/entity/session.entity.ts
+// src/modules/identity/session/session.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm'
 
 @Entity('sessions')
@@ -71,7 +71,7 @@ export class Session {
 O token **nunca é armazenado em texto puro** — apenas seu hash SHA-256. O usuário vê o token completo uma única vez, no momento da criação.
 
 ```typescript
-// src/modules/identity/core/crypto/token-generator.ts
+// src/modules/identity/session/token-generator.ts
 import { randomBytes, createHash } from 'crypto'
 
 const PREFIX = 'pat'
@@ -97,9 +97,9 @@ export function hashToken(token: string): string {
 ## 3. Token Service
 
 ```typescript
-// src/modules/identity/core/service/session.service.ts
+// src/modules/identity/session/session.service.ts
 import { Injectable } from '@nestjs/common'
-import { SessionRepository } from '@modules/identity'
+import { SessionRepository } from './session.repository'
 
 @Injectable()
 export class SessionService {
@@ -233,14 +233,14 @@ export class RolesGuard implements CanActivate {
 
 ## 7. Implementação do Repositório com TypeORM
 
-Repositório como **classe concreta** `@Injectable()` em `persistence/repository/` — sem interface nem token Symbol. Trabalha diretamente com a entidade TypeORM `Session` (core/entity/session.entity.ts), que também é a entidade de domínio.
+Repositório como **classe concreta** `@Injectable()` na pasta do agregado (`session.repository.ts`) — sem interface nem token Symbol. Trabalha diretamente com a entidade TypeORM `Session` (session.entity.ts), que também é a entidade de domínio.
 
 ```typescript
-// src/modules/identity/persistence/repository/session.repository.ts
+// src/modules/identity/session/session.repository.ts
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { Session } from '@modules/identity'
+import { Session } from './session.entity'
 
 @Injectable()
 export class SessionRepository {
@@ -274,7 +274,7 @@ export class SessionRepository {
 ```typescript
 // src/modules/identity/identity.module.ts
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { Session } from './core/entity/session.entity'
+import { Session } from './session/session.entity'
 
 @Module({
   imports: [TypeOrmModule.forFeature([Session])],

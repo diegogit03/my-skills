@@ -155,7 +155,7 @@ export class FinanceSubscriptionActivatedEvent implements DomainEvent {
 Handlers em outros módulos reagem a eventos. Sempre idempotentes.
 
 ```typescript
-// src/modules/finance/core/service/handlers/on-user-created.handler.ts
+// src/modules/finance/handlers/on-user-created.handler.ts
 import { OnEvent } from '@nestjs/event-emitter'
 import { Injectable, Logger } from '@nestjs/common'
 

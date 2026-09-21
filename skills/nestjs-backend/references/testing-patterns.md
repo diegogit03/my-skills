@@ -16,7 +16,7 @@
 Quando a entidade **não é anêmica** (contém comportamento de negócio, invariants e factories), teste-a isoladamente como objeto puro — sem Nest, sem mocks.
 
 ```typescript
-// src/modules/finance/core/wallet.entity.spec.ts
+// src/modules/finance/wallets/wallet.entity.spec.ts
 import { describe, it, expect } from 'vitest'
 import { Wallet } from './wallet.entity'
 
@@ -54,15 +54,15 @@ describe('Wallet', () => {
 
 ## 2. Testes de Serviço
 
-Teste a lógica de negócio por meio de serviços. Mocke os repositórios (classes concretas) via `useValue`, não o TypeORM. O spec fica no mesmo nível do service.
+Teste a lógica de negócio por meio de serviços. Mocke os repositórios (classes concretas) via `useValue`, não o TypeORM. O spec fica na pasta do agregado, ao lado do service.
 
 ```typescript
-// src/modules/finance/core/service/wallet.service.spec.ts
+// src/modules/finance/wallets/wallet.service.spec.ts
 import { describe, it, beforeEach, afterEach, vi, expect } from 'vitest'
 import { Test } from '@nestjs/testing'
 import type { TestingModule } from '@nestjs/testing'
 import { WalletService } from './wallet.service'
-import { WalletRepository } from '@modules/finance'
+import { WalletRepository } from './wallet.repository'
 import { EVENT_PUBLISHER } from '@common/contracts'
 
 describe('WalletService', () => {
@@ -202,8 +202,8 @@ export function createMockService(methods: string[]) {
 
 | Nível de Teste | O Que Testar                      | Onde                                             | Dependências             |
 | -------------- | --------------------------------- | ------------------------------------------------ | ------------------------ |
-| Entidade       | Comportamento de domínio (rich)   | `src/modules/[m]/core/domain/*.spec.ts`          | Nenhuma (objeto puro)    |
-| Serviço        | Regras de negócio via serviços    | `src/modules/[m]/core/service/*.spec.ts`         | Repos + eventos mockados |
+| Entidade       | Comportamento de domínio (rich)   | `src/modules/[m]/<aggregate>/*.spec.ts`          | Nenhuma (objeto puro)    |
+| Serviço        | Regras de negócio via serviços    | `src/modules/[m]/<aggregate>/*.spec.ts`          | Repos + eventos mockados |
 | E2E            | Ciclo de vida HTTP completo       | `src/modules/[m]/__tests__/`                     | App completo, banco de teste |
 
 ## Configuração

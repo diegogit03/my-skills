@@ -12,12 +12,12 @@ Componentes fundamentais de um módulo: serviços, entidades e repositórios. Pa
 
 ## 1. Serviços
 
-Serviços `@Injectable()` em `core/service/` encapsulam a lógica de negócio e interagem com os repositórios via DI — injetando a classe concreta diretamente, sem token Symbol.
+Serviços `@Injectable()` vivem na pasta do agregado, lado a lado com entity, repository e controller (flat-by-aggregate — ver `references/architecture-patterns.md`). Encapsulam a lógica de negócio e interagem com os repositórios via DI — injetando a classe concreta diretamente, sem token Symbol.
 
 ```typescript
-// src/modules/finance/core/service/wallet.service.ts
+// src/modules/finance/wallets/wallet.service.ts
 import { Injectable } from '@nestjs/common'
-import { WalletRepository } from '@modules/finance'
+import { WalletRepository } from './wallet.repository'
 import { Wallet } from './wallet.entity'
 import { EVENT_PUBLISHER } from '@common/contracts'
 
@@ -47,10 +47,10 @@ export class WalletService {
 
 ## 2. Entidades
 
-As entidades de domínio são as **próprias entidades TypeORM** — não há entidade de domínio pura separada. Uma única classe por entidade, em `core/entity/`, com decorators TypeORM e podendo conter métodos de domínio.
+As entidades de domínio são as **próprias entidades TypeORM** — não há entidade de domínio pura separada. Uma única classe por agregado, na pasta do agregado (`<aggregate>/<aggregate>.entity.ts`), com decorators TypeORM e podendo conter métodos de domínio.
 
 ```typescript
-// src/modules/finance/core/entity/wallet.entity.ts
+// src/modules/finance/wallets/wallet.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm'
 
 @Entity('finance_wallets')
@@ -76,7 +76,7 @@ export class Wallet {
 
 ## 3. Repositório
 
-Repositórios são **classes concretas** `@Injectable()` em `persistence/repository/` — sem interfaces nem tokens Symbol. O NestJS resolve a injeção pelo tipo da classe.
+Repositórios são **classes concretas** `@Injectable()` na pasta do agregado (`<aggregate>/<aggregate>.repository.ts`) — sem interfaces nem tokens Symbol. O NestJS resolve a injeção pelo tipo da classe.
 
 Todo repositório **estende obrigatoriamente** o `BaseRepository` do `common`, que fornece os métodos genéricos de CRUD (`findById`, `findAll`, `save`, `delete`). O repositório do módulo adiciona apenas o que é específico do domínio.
 
@@ -106,12 +106,12 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 ```
 
 ```typescript
-// src/modules/finance/persistence/repository/wallet.repository.ts
+// src/modules/finance/wallets/wallet.repository.ts
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { BaseRepository } from '@common/typeorm/base.repository'
-import { Wallet } from '@modules/finance'
+import { Wallet } from './wallet.entity'
 
 @Injectable()
 export class WalletRepository extends BaseRepository<Wallet> {

@@ -5,10 +5,9 @@
 ## Sumário
 
 1. Testes de Serviço (linha ~14)
-2. Testes de Controller (linha ~70)
-3. Testes de Integração de Módulo (linha ~112)
-4. Testes E2E (linha ~140)
-5. Mock Factories (linha ~200)
+2. Testes de Integração de Módulo (linha ~76)
+3. Testes E2E (linha ~104)
+4. Mock Factories (linha ~164)
 
 ---
 
@@ -74,50 +73,7 @@ describe('WalletService', () => {
 
 ---
 
-## 2. Testes de Controller
-
-Teste a camada HTTP de forma independente dos serviços.
-
-```typescript
-// src/modules/finance/http/controllers/__tests__/wallet.controller.spec.ts
-import { describe, it, beforeEach, vi, expect } from 'vitest'
-import { Test } from '@nestjs/testing'
-import type { TestingModule } from '@nestjs/testing'
-import { WalletController } from '../wallet.controller'
-import { WalletService } from '../../../core/service/wallet.service'
-
-describe('WalletController', () => {
-  let controller: WalletController
-  let service: { create: ReturnType<typeof vi.fn>; getById: ReturnType<typeof vi.fn>; findAll: ReturnType<typeof vi.fn> }
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [WalletController],
-      providers: [
-        { provide: WalletService, useValue: { create: vi.fn(), getById: vi.fn(), findAll: vi.fn() } },
-      ],
-    }).compile()
-
-    controller = module.get(WalletController)
-    service = module.get(WalletService)
-  })
-
-  it('cria uma wallet via serviço', async () => {
-    const expectedWallet = { id: 'w-1', name: 'Main' }
-    service.create.mockResolvedValue(expectedWallet)
-
-    const dto = { userId: 'user-1', name: 'Main' }
-    const result = await controller.create(dto as any)
-
-    expect(service.create).toHaveBeenCalledTimes(1)
-    expect(result).toBeDefined()
-  })
-})
-```
-
----
-
-## 3. Testes de Integração de Módulo
+## 2. Testes de Integração de Módulo
 
 Teste que os módulos funcionam corretamente DENTRO de suas fronteiras. Estes testes verificam que DI, repositórios e serviços funcionam juntos.
 
@@ -157,7 +113,7 @@ describe('FinanceModule (integração)', () => {
 
 ---
 
-## 4. Testes E2E
+## 3. Testes E2E
 
 Teste o ciclo de vida HTTP completo, incluindo auth, validação e resposta.
 
@@ -215,7 +171,7 @@ describe('Finance (e2e)', () => {
 
 ---
 
-## 5. Mock Factories
+## 4. Mock Factories
 
 Criadores de mocks reutilizáveis para configuração consistente de testes.
 
@@ -246,7 +202,6 @@ export function createMockService(methods: string[]) {
 | Nível de Teste | O Que Testar                      | Onde                                             | Dependências             |
 | -------------- | --------------------------------- | ------------------------------------------------ | ------------------------ |
 | Serviço        | Regras de negócio via serviços    | `src/modules/[m]/core/service/__tests__/`        | Repos + eventos mockados |
-| Controller     | Interface HTTP                    | `src/modules/[m]/http/controllers/__tests__/`    | Serviço mockado          |
 | Integração     | DI do módulo, cadeia completa     | `src/modules/[m]/__tests__/`                     | Módulo real, banco de teste |
 | E2E            | Ciclo de vida HTTP completo       | `test/`                                          | App completo, banco de teste |
 

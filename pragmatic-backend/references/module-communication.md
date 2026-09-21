@@ -17,7 +17,7 @@
 Todos os eventos implementam uma interface compartilhada. Este é o contrato entre módulos.
 
 ```typescript
-// libs/shared/contracts/src/events/domain-event.interface.ts
+// src/common/contracts/events/domain-event.interface.ts
 export interface DomainEvent {
   readonly aggregateId: string
   readonly eventType: string
@@ -26,7 +26,7 @@ export interface DomainEvent {
   readonly payload: Record<string, unknown>
 }
 
-// libs/shared/contracts/src/events/event-publisher.interface.ts
+// src/common/contracts/events/event-publisher.interface.ts
 export interface EventPublisher {
   publish<T extends Record<string, unknown>>(eventName: string, payload: T): Promise<void>
 }
@@ -39,10 +39,10 @@ export const EVENT_PUBLISHER = Symbol('EventPublisher')
 Para desenvolvimento local e testes. Troque para o publisher de produção via DI.
 
 ```typescript
-// libs/shared/infrastructure/src/events/in-memory-event-publisher.ts
+// src/common/infrastructure/events/in-memory-event-publisher.ts
 import { Injectable, Logger } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { EventPublisher } from '@project/shared/contracts'
+import { EventPublisher } from '@common/contracts'
 
 @Injectable()
 export class InMemoryEventPublisher implements EventPublisher {
@@ -66,10 +66,10 @@ export class InMemoryEventPublisher implements EventPublisher {
 ### Redis — Para cenários de tempo real, pub/sub
 
 ```typescript
-// libs/shared/infrastructure/src/events/redis-event-publisher.ts
+// src/common/infrastructure/events/redis-event-publisher.ts
 import { Injectable } from '@nestjs/common'
 import { Redis } from 'ioredis'
-import { EventPublisher } from '@project/shared/contracts'
+import { EventPublisher } from '@common/contracts'
 
 @Injectable()
 export class RedisEventPublisher implements EventPublisher {
@@ -86,7 +86,7 @@ export class RedisEventPublisher implements EventPublisher {
 ## 4. Registrando Publishers via DI
 
 ```typescript
-// libs/shared/infrastructure/src/events/event-publisher.module.ts
+// src/common/infrastructure/events/event-publisher.module.ts
 @Module({
   providers: [
     {
@@ -115,7 +115,7 @@ export class EventPublisherModule {}
 Eventos são a ÚNICA forma pela qual os módulos devem se comunicar. Defina os contratos de eventos na biblioteca de contratos compartilhados.
 
 ```typescript
-// libs/shared/contracts/src/events/identity.events.ts
+// src/common/contracts/events/identity.events.ts
 export class IdentityUserCreatedEvent implements DomainEvent {
   readonly eventType = 'identity.user.created'
   readonly version = 1
@@ -127,9 +127,9 @@ export class IdentityUserCreatedEvent implements DomainEvent {
   ) {}
 }
 
-// libs/shared/contracts/src/events/billing.events.ts
-export class BillingSubscriptionActivatedEvent implements DomainEvent {
-  readonly eventType = 'billing.subscription.activated'
+// src/common/contracts/events/finance.events.ts
+export class FinanceSubscriptionActivatedEvent implements DomainEvent {
+  readonly eventType = 'finance.subscription.activated'
   readonly version = 1
   readonly occurredAt = new Date()
 
@@ -155,7 +155,7 @@ export class BillingSubscriptionActivatedEvent implements DomainEvent {
 Handlers em outros módulos reagem a eventos. Sempre idempotentes.
 
 ```typescript
-// libs/billing/application/handlers/on-user-created.handler.ts
+// src/modules/finance/core/service/handlers/on-user-created.handler.ts
 import { OnEvent } from '@nestjs/event-emitter'
 import { Injectable, Logger } from '@nestjs/common'
 
@@ -165,8 +165,8 @@ export class OnUserCreatedHandler {
 
   @OnEvent('identity.user.created')
   async handle(event: IdentityUserCreatedEvent): Promise<void> {
-    this.logger.log(`Configurando billing para o usuário: ${event.payload.userId}`)
-    await this.billingService.createDefaultProfile(event.payload.userId)
+    this.logger.log(`Configurando finance para o usuário: ${event.payload.userId}`)
+    await this.financeService.createDefaultProfile(event.payload.userId)
   }
 }
 ```

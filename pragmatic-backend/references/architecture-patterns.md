@@ -1,108 +1,59 @@
-# Padrões de Arquitetura
+# Padrões de Arquitetura de Módulo
+
+Cada módulo usa **um** destes padrões — nunca misture os dois dentro do mesmo módulo. Para os componentes fundamentais (serviços, entidades e repositórios), ver `references/building-blocks.md`.
 
 ## Sumário
 
-1. Padrão de Serviço Simples — Default (linha ~10)
-2. Configuração Strict do TypeScript (linha ~90)
+1. Layer Architecture (linha ~13)
+2. Feature Folders (linha ~35)
+3. Como Escolher (linha ~55)
 
 ---
 
-## 1. Padrão de Serviço Simples — Default
+## 1. Layer Architecture
 
-Esta é a abordagem default recomendada. Use serviços `@Injectable()` que encapsulam a lógica de negócio e interagem com os repositórios via DI.
+Padrão para módulos com domínio complexo.
 
-```typescript
-// libs/orders/application/services/order.service.ts
-@Injectable()
-export class OrderService {
-  constructor(
-    @Inject(ORDER_REPOSITORY) private readonly repo: OrderRepository,
-    @Inject(EVENT_PUBLISHER) private readonly events: EventPublisher,
-  ) {}
-
-  async placeOrder(customerId: string, items: Array<{ productId: string; quantity: number }>): Promise<string> {
-    const order = new OrderAggregate(generateId(), customerId)
-    for (const item of items) {
-      const price = await this.pricingService.getPrice(item.productId)
-      order.addItem(item.productId, item.quantity, price)
-    }
-    order.confirm()
-    await this.repo.save(order)
-    await this.events.publish('orders.order.placed', { orderId: order.id, total: order.total })
-    return order.id
-  }
-
-  async getById(id: string): Promise<OrderAggregate> {
-    const order = await this.repo.findById(id)
-    if (!order) throw new OrderNotFoundError(id)
-    return order
-  }
-}
 ```
-
-O controller injeta o serviço diretamente:
-
-```typescript
-@Controller('orders')
-@ApiTags('orders')
-export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
-
-  @Post()
-  async create(@Body() dto: CreateOrderDto) {
-    const orderId = await this.orderService.placeOrder(dto.customerId, dto.items)
-    return { id: orderId }
-  }
-
-  @Get(':id')
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.orderService.getById(id)
-  }
-}
+finance/
+  core/
+    service/               # Serviços (orquestradores)
+    entities/              # Entidades TypeORM (entidades de domínio)
+  http/
+    controllers/           # Controllers, DTOs
+  persistence/
+    migrations/            # Migrações do módulo
+    repository/            # Repositórios (classes concretas)
+  finance.module.ts
 ```
 
 ---
 
-## 2. Configuração Strict do TypeScript
+## 2. Feature Folders
 
-### tsconfig.base.json
+Padrão para módulos simples ou majoritariamente CRUD. Cada feature é autocontida com service + controller lado a lado.
 
-```json
-{
-  "compileOnSave": false,
-  "compilerOptions": {
-    "rootDir": ".",
-    "sourceMap": true,
-    "declaration": false,
-    "moduleResolution": "node",
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "importHelpers": true,
-    "target": "es2022",
-    "module": "esnext",
-    "lib": ["es2022"],
-    "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
-    "baseUrl": ".",
-    "strict": true,
-    "noImplicitReturns": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "noUncheckedIndexedAccess": true,
-    "paths": {
-      "@project/shared/domain": ["libs/shared/domain/src/index.ts"],
-      "@project/shared/contracts": ["libs/shared/contracts/src/index.ts"],
-      "@project/shared/infrastructure": ["libs/shared/infrastructure/src/index.ts"],
-      "@project/billing": ["libs/billing/src/index.ts"],
-      "@project/identity": ["libs/identity/src/index.ts"],
-      "@project/orders": ["libs/orders/src/index.ts"]
-    }
-  },
-  "exclude": ["node_modules", "tmp", "dist"]
-}
+```
+finance/
+  wallets/
+    wallet.service.ts
+    wallet.controller.ts
+  transactions/
+    transaction.service.ts
+    transaction.controller.ts
+  finance.module.ts
 ```
 
-**Flags inegociáveis:** `strict`, `strictNullChecks`, `noImplicitAny`, `noUncheckedIndexedAccess`. Elas capturam bugs reais e reforçam a corretude do domínio.
+---
+
+## 3. Como Escolher
+
+| Critério                                  | Layer Architecture | Feature Folders |
+| ----------------------------------------- | ------------------ | --------------- |
+| Regras de negócio ricas, invariantes      | ✅                 | ❌              |
+| Múltiplas entidades relacionadas          | ✅                 | ❌              |
+| Majoritariamente CRUD                     | ❌ over-engineering| ✅              |
+| Features independentes e simples          | ❌ over-engineering| ✅              |
+| Serviços com orquestração complexa        | ✅                 | ⚠️ se crescer, migre |
+
+**Regra prática:** comece com Feature Folders; quando um módulo acumular regras de negócio complexas, múltiplas entidades e necessidade de testar serviços isolados, migre para Layer Architecture.

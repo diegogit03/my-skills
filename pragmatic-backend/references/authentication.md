@@ -20,33 +20,10 @@ O padrão recomendado é **Personal Access Token (PAT) opaco** — tokens aleat�
 
 ## 1. Entidade e Tabela de Tokens
 
-Tokens pertencem ao módulo de identidade e são prefixados com o nome do módulo.
+Tokens pertencem ao módulo de identidade e são prefixados com o nome do módulo. A entidade de domínio é a **própria entidade TypeORM** — não há entidade de domínio pura separada; métodos de domínio (como `isActive`) vivem na própria entidade.
 
 ```typescript
-// libs/identity/domain/entities/session.ts
-export class Session {
-  constructor(
-    public readonly id: string,
-    public readonly userId: string,
-    public readonly name: string,
-    public readonly tokenHash: string,
-    public readonly prefix: string,
-    public readonly lastUsedAt: Date | null,
-    public readonly expiresAt: Date | null,
-    public readonly revokedAt: Date | null,
-    public readonly createdAt: Date,
-  ) {}
-
-  isActive(now: Date): boolean {
-    if (this.revokedAt) return false
-    if (this.expiresAt && this.expiresAt <= now) return false
-    return true
-  }
-}
-```
-
-```typescript
-// libs/identity/infrastructure/entities/session.ts
+// src/modules/identity/core/entities/session.entity.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm'
 
 @Entity('sessions')
@@ -78,6 +55,12 @@ export class Session {
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date
+
+  isActive(now: Date): boolean {
+    if (this.revokedAt) return false
+    if (this.expiresAt && this.expiresAt <= now) return false
+    return true
+  }
 }
 ```
 
@@ -88,7 +71,7 @@ export class Session {
 O token **nunca é armazenado em texto puro** — apenas seu hash SHA-256. O usuário vê o token completo uma única vez, no momento da criação.
 
 ```typescript
-// libs/identity/infrastructure/crypto/token-generator.ts
+// src/modules/identity/core/crypto/token-generator.ts
 import { randomBytes, createHash } from 'crypto'
 
 const PREFIX = 'pat'
@@ -114,23 +97,14 @@ export function hashToken(token: string): string {
 ## 3. Token Service
 
 ```typescript
-// libs/identity/application/services/session.service.ts
-import { Inject } from '@nestjs/common'
-
-export const IDENTITY_SESSION_REPOSITORY = Symbol('SessionRepository')
-
-export interface SessionRepository {
-  findByTokenHash(hash: string): Promise<Session | null>
-  findByUserId(userId: string): Promise<Session[]>
-  save(token: Session): Promise<Session>
-  delete(id: string): Promise<void>
-}
+// src/modules/identity/core/service/session.service.ts
+import { Injectable } from '@nestjs/common'
+import { SessionRepository } from '../../persistence/repository/session.repository'
 
 @Injectable()
 export class SessionService {
   constructor(
-    @Inject(IDENTITY_SESSION_REPOSITORY)
-    private readonly repository: SessionRepository,
+    private readonly sessionRepository: SessionRepository,
   ) {}
 
   async create(userId: string, name: string, expiresInDays?: number): Promise<string> {
@@ -138,38 +112,35 @@ export class SessionService {
     const expiresAt = expiresInDays
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
       : null
-    await this.repository.save(
-      new Session(generateId(), userId, name, hash, prefix, null, expiresAt, null, new Date()),
-    )
+    const session = new Session()
+    session.id = generateId()
+    session.userId = userId
+    session.name = name
+    session.tokenHash = hash
+    session.prefix = prefix
+    session.expiresAt = expiresAt
+    await this.sessionRepository.save(session)
     return token // retornado UMA única vez
   }
 
   async authenticate(token: string): Promise<Session | null> {
-    const record = await this.repository.findByTokenHash(hashToken(token))
+    const record = await this.sessionRepository.findByTokenHash(hashToken(token))
     if (!record || !record.isActive(new Date())) return null
-    await this.repository.save(
-      new Session(
-        record.id, record.userId, record.name, record.tokenHash, record.prefix,
-        new Date(), record.expiresAt, record.revokedAt, record.createdAt,
-      ),
-    )
+    record.lastUsedAt = new Date()
+    await this.sessionRepository.save(record)
     return record
   }
 
   async revoke(userId: string, tokenId: string): Promise<void> {
-    const tokens = await this.repository.findByUserId(userId)
+    const tokens = await this.sessionRepository.findByUserId(userId)
     const token = tokens.find((t) => t.id === tokenId)
     if (!token) throw new SessionNotFoundError(tokenId)
-    await this.repository.save(
-      new Session(
-        token.id, token.userId, token.name, token.tokenHash, token.prefix,
-        token.lastUsedAt, token.expiresAt, new Date(), token.createdAt,
-      ),
-    )
+    token.revokedAt = new Date()
+    await this.sessionRepository.save(token)
   }
 
   async list(userId: string): Promise<Session[]> {
-    return this.repository.findByUserId(userId)
+    return this.sessionRepository.findByUserId(userId)
   }
 }
 ```
@@ -181,11 +152,11 @@ export class SessionService {
 Guard nativo NestJS — sem Passport. Extrai o `Bearer` token, valida contra o banco e anexa o usuário à requisição.
 
 ```typescript
-// libs/shared/infrastructure/guards/session-auth.guard.ts
+// src/common/infrastructure/guards/session-auth.guard.ts
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator'
-import { SessionService } from '@project/identity'
+import { SessionService } from '@modules/identity'
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
@@ -224,13 +195,13 @@ export class SessionAuthGuard implements CanActivate {
 ## 5. Decorators
 
 ```typescript
-// libs/shared/infrastructure/decorators/public.decorator.ts
+// src/common/infrastructure/decorators/public.decorator.ts
 import { SetMetadata } from '@nestjs/common'
 
 export const IS_PUBLIC_KEY = 'isPublic'
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true)
 
-// libs/shared/infrastructure/decorators/roles.decorator.ts
+// src/common/infrastructure/decorators/roles.decorator.ts
 export const ROLES_KEY = 'roles'
 export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles)
 ```
@@ -240,7 +211,7 @@ export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles)
 ## 6. Roles Guard
 
 ```typescript
-// libs/shared/infrastructure/guards/roles.guard.ts
+// src/common/infrastructure/guards/roles.guard.ts
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -262,65 +233,36 @@ export class RolesGuard implements CanActivate {
 
 ## 7. Implementação do Repositório com TypeORM
 
-A interface do repositório vive no domínio; a implementação TypeORM na infraestrutura, mapeando a entidade TypeORM `Session` (entidades/session) para a entidade de domínio `Session` (domain/entities), ambas sem sufixo.
+Repositório como **classe concreta** `@Injectable()` em `persistence/repository/` — sem interface nem token Symbol. Trabalha diretamente com a entidade TypeORM `Session` (core/entities/session.entity.ts), que também é a entidade de domínio.
 
 ```typescript
-// libs/identity/infrastructure/repositories/typeorm-session.repository.ts
+// src/modules/identity/persistence/repository/session.repository.ts
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { IsNull, Repository } from 'typeorm'
-import { Session as SessionDomain } from '../../domain/entities/session'
-import { IDENTITY_SESSION_REPOSITORY, SessionRepository } from '../../application/services/session.service'
-import { Session } from '../entities/session'
+import { Repository } from 'typeorm'
+import { Session } from '../../core/entities/session.entity'
 
 @Injectable()
-export class TypeOrmSessionRepository implements SessionRepository {
+export class SessionRepository {
   constructor(
     @InjectRepository(Session)
     private readonly repository: Repository<Session>,
   ) {}
 
-  async findByTokenHash(hash: string): Promise<SessionDomain | null> {
-    const data = await this.repository.findOneBy({ tokenHash: hash })
-    return data ? this.toDomain(data) : null
+  async findByTokenHash(hash: string): Promise<Session | null> {
+    return this.repository.findOneBy({ tokenHash: hash })
   }
 
-  async findByUserId(userId: string): Promise<SessionDomain[]> {
-    const data = await this.repository.find({ where: { userId }, order: { createdAt: 'DESC' } })
-    return data.map((row) => this.toDomain(row))
+  async findByUserId(userId: string): Promise<Session[]> {
+    return this.repository.find({ where: { userId }, order: { createdAt: 'DESC' } })
   }
 
-  async save(session: SessionDomain): Promise<SessionDomain> {
-    await this.repository.save({
-      id: session.id,
-      userId: session.userId,
-      name: session.name,
-      tokenHash: session.tokenHash,
-      prefix: session.prefix,
-      lastUsedAt: session.lastUsedAt,
-      expiresAt: session.expiresAt,
-      revokedAt: session.revokedAt,
-      createdAt: session.createdAt,
-    })
-    return session
+  async save(session: Session): Promise<Session> {
+    return this.repository.save(session)
   }
 
   async delete(id: string): Promise<void> {
     await this.repository.delete(id)
-  }
-
-  private toDomain(data: Session): SessionDomain {
-    return new SessionDomain(
-      data.id,
-      data.userId,
-      data.name,
-      data.tokenHash,
-      data.prefix,
-      data.lastUsedAt,
-      data.expiresAt,
-      data.revokedAt,
-      data.createdAt,
-    )
   }
 }
 ```
@@ -330,15 +272,15 @@ export class TypeOrmSessionRepository implements SessionRepository {
 ## 8. Configuração do Módulo de Auth
 
 ```typescript
-// libs/identity/identity.module.ts
+// src/modules/identity/identity.module.ts
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { Session } from './infrastructure/entities/session'
+import { Session } from './core/entities/session.entity'
 
 @Module({
   imports: [TypeOrmModule.forFeature([Session])],
   providers: [
     SessionService,
-    { provide: IDENTITY_SESSION_REPOSITORY, useClass: TypeOrmSessionRepository },
+    SessionRepository,
   ],
   exports: [SessionService],
 })
@@ -350,7 +292,7 @@ export class IdentityModule {}
 ## 9. Aplicar Guards Globalmente
 
 ```typescript
-// apps/api/src/app.module.ts
+// src/app.module.ts
 @Module({
   providers: [
     { provide: APP_GUARD, useClass: SessionAuthGuard },

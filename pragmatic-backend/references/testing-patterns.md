@@ -1,70 +1,73 @@
 # Padrões de Teste
 
+> Usa **Vitest** como framework de testes. Execução: `vitest` (watch), `vitest run` (CI). API compatível com Jest (`describe`, `it`, `expect`, `vi.fn()`), mas com execução mais rápida e suporte nativo a ESM/TS.
+
 ## Sumário
 
-1. Testes de Serviço (linha ~10)
-2. Testes de Controller (linha ~60)
-3. Testes de Integração de Módulo (linha ~100)
-4. Testes E2E (linha ~130)
-5. Mock Factories (linha ~190)
+1. Testes de Serviço (linha ~14)
+2. Testes de Controller (linha ~70)
+3. Testes de Integração de Módulo (linha ~112)
+4. Testes E2E (linha ~140)
+5. Mock Factories (linha ~200)
 
 ---
 
 ## 1. Testes de Serviço
 
-Teste a lógica de negócio por meio de serviços. Mocke as interfaces de repositório, não o TypeORM.
+Teste a lógica de negócio por meio de serviços. Mocke os repositórios (classes concretas) via `useValue`, não o TypeORM.
 
 ```typescript
-// libs/billing/application/__tests__/billing-plan.service.spec.ts
-import { Test, TestingModule } from '@nestjs/testing'
-import { BillingPlanService } from '../services/billing-plan.service'
-import { BILLING_PLAN_REPOSITORY } from '../../domain/repositories/billing-plan.repository'
-import { EVENT_PUBLISHER } from '@project/shared/contracts'
+// src/modules/finance/core/service/__tests__/wallet.service.spec.ts
+import { describe, it, beforeEach, afterEach, vi, expect } from 'vitest'
+import { Test } from '@nestjs/testing'
+import type { TestingModule } from '@nestjs/testing'
+import { WalletService } from '../wallet.service'
+import { WalletRepository } from '../../../persistence/repository/wallet.repository'
+import { EVENT_PUBLISHER } from '@common/contracts'
 
-describe('BillingPlanService', () => {
-  let service: BillingPlanService
-  let repository: jest.Mocked<BillingPlanRepository>
-  let events: jest.Mocked<EventPublisher>
+describe('WalletService', () => {
+  let service: WalletService
+  let walletRepository: Record<'findById' | 'findAll' | 'save' | 'delete', ReturnType<typeof vi.fn>>
+  let events: { publish: ReturnType<typeof vi.fn> }
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        BillingPlanService,
+        WalletService,
         {
-          provide: BILLING_PLAN_REPOSITORY,
-          useValue: { findById: jest.fn(), findAll: jest.fn(), save: jest.fn(), delete: jest.fn() },
+          provide: WalletRepository,
+          useValue: { findById: vi.fn(), findAll: vi.fn(), save: vi.fn(), delete: vi.fn() },
         },
         {
           provide: EVENT_PUBLISHER,
-          useValue: { publish: jest.fn() },
+          useValue: { publish: vi.fn() },
         },
       ],
     }).compile()
 
-    service = module.get(BillingPlanService)
-    repository = module.get(BILLING_PLAN_REPOSITORY)
+    service = module.get(WalletService)
+    walletRepository = module.get(WalletRepository)
     events = module.get(EVENT_PUBLISHER)
   })
 
-  afterEach(() => jest.clearAllMocks())
+  afterEach(() => vi.clearAllMocks())
 
-  it('cria um plano de cobrança e publica evento', async () => {
-    repository.save.mockImplementation(async (plan) => plan)
+  it('cria uma wallet e publica evento', async () => {
+    walletRepository.save.mockImplementation(async (wallet) => wallet)
 
-    const result = await service.create('Pro', 2999, BillingInterval.MONTHLY)
+    const result = await service.create('user-1', 'Main')
 
-    expect(result.name).toBe('Pro')
-    expect(result.priceInCents).toBe(2999)
-    expect(repository.save).toHaveBeenCalledTimes(1)
+    expect(result.name).toBe('Main')
+    expect(walletRepository.save).toHaveBeenCalledTimes(1)
     expect(events.publish).toHaveBeenCalledWith(
-      'billing.plan.created',
-      expect.objectContaining({ planId: expect.any(String) }),
+      'finance.wallet.created',
+      expect.objectContaining({ walletId: expect.any(String) }),
     )
   })
 
-  it('lança erro quando o plano não é encontrado', async () => {
-    repository.findById.mockResolvedValue(null)
-    await expect(service.findById('nonexistent')).rejects.toThrow(BillingPlanNotFoundError)
+  it('lança erro quando a wallet não é encontrada', async () => {
+    walletRepository.findById.mockResolvedValue(null)
+    await expect(service.getById('nonexistent')).rejects.toThrow(WalletNotFoundError)
   })
 })
 ```
@@ -76,32 +79,34 @@ describe('BillingPlanService', () => {
 Teste a camada HTTP de forma independente dos serviços.
 
 ```typescript
-// libs/billing/presentation/__tests__/billing-plan.controller.spec.ts
-import { Test, TestingModule } from '@nestjs/testing'
-import { BillingPlanController } from '../billing-plan.controller'
-import { BillingPlanService } from '../../application/services/billing-plan.service'
+// src/modules/finance/http/controllers/__tests__/wallet.controller.spec.ts
+import { describe, it, beforeEach, vi, expect } from 'vitest'
+import { Test } from '@nestjs/testing'
+import type { TestingModule } from '@nestjs/testing'
+import { WalletController } from '../wallet.controller'
+import { WalletService } from '../../../core/service/wallet.service'
 
-describe('BillingPlanController', () => {
-  let controller: BillingPlanController
-  let service: jest.Mocked<BillingPlanService>
+describe('WalletController', () => {
+  let controller: WalletController
+  let service: { create: ReturnType<typeof vi.fn>; getById: ReturnType<typeof vi.fn>; findAll: ReturnType<typeof vi.fn> }
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [BillingPlanController],
+      controllers: [WalletController],
       providers: [
-        { provide: BillingPlanService, useValue: { create: jest.fn(), findById: jest.fn(), findAll: jest.fn() } },
+        { provide: WalletService, useValue: { create: vi.fn(), getById: vi.fn(), findAll: vi.fn() } },
       ],
     }).compile()
 
-    controller = module.get(BillingPlanController)
-    service = module.get(BillingPlanService)
+    controller = module.get(WalletController)
+    service = module.get(WalletService)
   })
 
-  it('cria um plano via serviço', async () => {
-    const expectedPlan = { id: 'p-1', name: 'Pro', priceInCents: 2999 }
-    service.create.mockResolvedValue(expectedPlan as any)
+  it('cria uma wallet via serviço', async () => {
+    const expectedWallet = { id: 'w-1', name: 'Main' }
+    service.create.mockResolvedValue(expectedWallet)
 
-    const dto = { name: 'Pro', priceInCents: 2999, interval: 'MONTHLY' }
+    const dto = { userId: 'user-1', name: 'Main' }
     const result = await controller.create(dto as any)
 
     expect(service.create).toHaveBeenCalledTimes(1)
@@ -117,18 +122,20 @@ describe('BillingPlanController', () => {
 Teste que os módulos funcionam corretamente DENTRO de suas fronteiras. Estes testes verificam que DI, repositórios e serviços funcionam juntos.
 
 ```typescript
-// libs/billing/__tests__/billing.module.integration.spec.ts
-import { Test, TestingModule } from '@nestjs/testing'
-import { BillingModule } from '../billing.module'
-import { BillingPlanService } from '../application/services/billing-plan.service'
-import { BILLING_PLAN_REPOSITORY } from '../domain/repositories/billing-plan.repository'
+// src/modules/finance/__tests__/finance.module.integration.spec.ts
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { Test } from '@nestjs/testing'
+import type { TestingModule } from '@nestjs/testing'
+import { FinanceModule } from '../finance.module'
+import { WalletService } from '../core/service/wallet.service'
+import { WalletRepository } from '../persistence/repository/wallet.repository'
 
-describe('BillingModule (integração)', () => {
+describe('FinanceModule (integração)', () => {
   let module: TestingModule
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
-      imports: [BillingModule],
+      imports: [FinanceModule],
     }).compile()
   })
 
@@ -136,14 +143,14 @@ describe('BillingModule (integração)', () => {
     await module.close()
   })
 
-  it('resolve BillingPlanService', () => {
-    const service = module.get(BillingPlanService)
+  it('resolve WalletService', () => {
+    const service = module.get(WalletService)
     expect(service).toBeDefined()
   })
 
-  it('resolve BillingPlanRepository', () => {
-    const repo = module.get(BILLING_PLAN_REPOSITORY)
-    expect(repo).toBeDefined()
+  it('resolve WalletRepository', () => {
+    const walletRepository = module.get(WalletRepository)
+    expect(walletRepository).toBeDefined()
   })
 })
 ```
@@ -155,14 +162,14 @@ describe('BillingModule (integração)', () => {
 Teste o ciclo de vida HTTP completo, incluindo auth, validação e resposta.
 
 ```typescript
-// apps/api/test/billing.e2e-spec.ts
-import { INestApplication } from '@nestjs/common'
+// test/finance.e2e-spec.ts
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { INestApplication, ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import * as request from 'supertest'
+import request from 'supertest'
 import { AppModule } from '../src/app.module'
-import { ValidationPipe } from '@nestjs/common'
 
-describe('Billing (e2e)', () => {
+describe('Finance (e2e)', () => {
   let app: INestApplication
   let authToken: string
 
@@ -181,27 +188,27 @@ describe('Billing (e2e)', () => {
 
   afterAll(() => app.close())
 
-  it('POST /billing/plans — cria plano', async () => {
+  it('POST /wallets — cria wallet', async () => {
     const response = await request(app.getHttpServer())
-      .post('/billing/plans')
+      .post('/wallets')
       .set('Authorization', `Bearer ${authToken}`)
-      .send({ name: 'Pro', priceInCents: 2999, interval: 'MONTHLY' })
+      .send({ name: 'Main' })
       .expect(201)
 
     expect(response.body).toHaveProperty('id')
-    expect(response.body.name).toBe('Pro')
+    expect(response.body.name).toBe('Main')
   })
 
-  it('POST /billing/plans — rejeita dados inválidos', async () => {
+  it('POST /wallets — rejeita dados inválidos', async () => {
     await request(app.getHttpServer())
-      .post('/billing/plans')
+      .post('/wallets')
       .set('Authorization', `Bearer ${authToken}`)
-      .send({ name: '', priceInCents: -1 })
+      .send({ name: '' })
       .expect(400)
   })
 
-  it('GET /billing/plans — retorna 401 sem autenticação', async () => {
-    await request(app.getHttpServer()).get('/billing/plans').expect(401)
+  it('GET /wallets — retorna 401 sem autenticação', async () => {
+    await request(app.getHttpServer()).get('/wallets').expect(401)
   })
 })
 ```
@@ -213,31 +220,59 @@ describe('Billing (e2e)', () => {
 Criadores de mocks reutilizáveis para configuração consistente de testes.
 
 ```typescript
-// libs/shared/infrastructure/src/testing/mock-factories.ts
+// src/common/infrastructure/testing/mock-factories.ts
+import { vi } from 'vitest'
 
-export function createMockRepository<T>() {
+export function createMockRepository() {
   return {
-    findById: jest.fn(),
-    findAll: jest.fn(),
-    save: jest.fn(),
-    delete: jest.fn(),
-  } as jest.Mocked<any>
+    findById: vi.fn(),
+    findAll: vi.fn(),
+    save: vi.fn(),
+    delete: vi.fn(),
+  }
 }
 
 export function createMockEventPublisher() {
-  return { publish: jest.fn() } as jest.Mocked<any>
+  return { publish: vi.fn() }
 }
 
 export function createMockService(methods: string[]) {
-  return Object.fromEntries(methods.map((m) => [m, jest.fn()])) as jest.Mocked<any>
+  return Object.fromEntries(methods.map((m) => [m, vi.fn()]))
 }
 ```
 
 ## Referência Rápida
 
-| Nível de Teste | O Que Testar                      | Onde                                    | Dependências             |
-| -------------- | --------------------------------- | --------------------------------------- | ------------------------ |
-| Serviço        | Regras de negócio via serviços    | `libs/[module]/application/__tests__/`  | Repos + eventos mockados |
-| Controller     | Interface HTTP                    | `libs/[module]/presentation/__tests__/` | Serviço mockado          |
-| Integração     | DI do módulo, cadeia completa     | `libs/[module]/__tests__/`              | Módulo real, banco de teste |
-| E2E            | Ciclo de vida HTTP completo       | `apps/api/test/`                        | App completo, banco de teste |
+| Nível de Teste | O Que Testar                      | Onde                                             | Dependências             |
+| -------------- | --------------------------------- | ------------------------------------------------ | ------------------------ |
+| Serviço        | Regras de negócio via serviços    | `src/modules/[m]/core/service/__tests__/`        | Repos + eventos mockados |
+| Controller     | Interface HTTP                    | `src/modules/[m]/http/controllers/__tests__/`    | Serviço mockado          |
+| Integração     | DI do módulo, cadeia completa     | `src/modules/[m]/__tests__/`                     | Módulo real, banco de teste |
+| E2E            | Ciclo de vida HTTP completo       | `test/`                                          | App completo, banco de teste |
+
+## Configuração
+
+```typescript
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
+    projects: [
+      { test: { name: 'unit', include: ['src/**/*.spec.ts'] } },
+      { test: { name: 'e2e', include: ['test/**/*.e2e-spec.ts'], testTimeout: 30_000 } },
+    ],
+  },
+})
+```
+
+## Comandos
+
+```bash
+vitest run                    # roda todos os testes (CI)
+vitest                        # watch mode
+vitest run --project unit     # apenas unitários
+vitest run --project e2e      # apenas e2e
+vitest run finance            # filtrar por nome de arquivo
+```

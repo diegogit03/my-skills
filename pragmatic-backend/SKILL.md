@@ -1,9 +1,46 @@
 ---
-name: pragmatic-nestjs
-description: Orientação para construção de apps Backend com Nest.JS
+name: pragmatic-backend
+description: Orientação para construção de APIs Backend com Nest.JS
 ---
 
 # Pragmatic NestJS
+
+## Estrutura do Projeto
+
+```
+src/
+  common/                  # Shared kernel — nada de lógica de negócio aqui
+    contracts/             # Contratos entre módulos (eventos, interfaces)
+    infrastructure/        # Publishers, guards, decorators, testing utils
+  modules/                 # Módulos de domínio
+    finance/
+    identity/
+  app.module.ts
+  main.ts
+test/                      # Testes E2E
+```
+
+Aliase de import:
+
+- `@common/*` → `src/common/*`
+- `@modules/<nome>` → `src/modules/<nome>` (apenas via barrel `index.ts`)
+
+## Padrões de Arquitetura de Módulo
+
+Módulos usam **Layer Architecture** (ver `references/architecture-patterns.md`):
+
+```
+finance/
+  core/                    # Lógica de negócio
+    service/               # Serviços (orquestradores)
+    entities/              # Entidades TypeORM (entidades de domínio)
+  http/
+    controllers/           # Controllers, DTOs
+  persistence/
+    migrations/            # Migrações do módulo
+    repository/            # Repositórios (classes concretas)
+  finance.module.ts
+```
 
 ## Princípios Fundamentais
 
@@ -22,10 +59,6 @@ description: Orientação para construção de apps Backend com Nest.JS
 
 Controllers -> Services -> Repository/Entity
 
-Tipos de módulos:
-- Infraestrutura
-- Dominio
-
 Entidades Ricas
 
 Services = orquestradores
@@ -37,7 +70,7 @@ Separação Vertical > Separação Horizontal
 | Tópico        | Referência                          | Carregar Quando                                    |
 | ------------- | ----------------------------------- | -------------------------------------------------- |
 | Autenticação  | `references/authentication.md`      | Configurar auth: Personal Access Token, guards e decorators |
-| Testes        | `references/testing-patterns.md`    | Escrever testes de serviço, controller, integração ou E2E  |
+| Testes        | `references/testing-patterns.md`    | Escrever testes de serviço, controller, integração ou E2E (Vitest) |
 | Comunicação   | `references/module-communication.md`| Implementar eventos entre módulos, publishers e handlers   |
-| Arquitetura   | `references/architecture-patterns.md` | Padrão de serviço simples, config strict do TypeScript    |
-| Isolamento Estado | `references/state-isolation.md`   | Nomenclatura de entidades, detecção de duplicatas e anti-padrões |
+| Arquitetura   | `references/architecture-patterns.md` | Layer architecture e feature folders: estrutura, escolha do padrão e registro do módulo |
+| Building Blocks | `references/building-blocks.md`     | Serviços, entidades TypeORM e repositórios (incl. base repository) |

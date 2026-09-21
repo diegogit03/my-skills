@@ -10,7 +10,7 @@ description: Orientação para construção de APIs Backend com Nest.JS
 ```
 src/
   common/                  # Shared kernel — nada de lógica de negócio aqui
-    contracts/             # Contratos entre módulos (interfaces de public API, eventos)
+    contracts/             # Contratos entre módulos (interfaces de public API, classes de eventos)
     infrastructure/        # Publishers, guards, decorators, testing utils
   modules/                 # Módulos de domínio
     finance/

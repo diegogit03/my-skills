@@ -22,7 +22,7 @@ import { Wallet } from './wallet.entity'
 
 describe('Wallet', () => {
   it('cria wallet com saldo inicial zero', () => {
-    const wallet = Wallet.create('user-1', 'Main')
+    const wallet = new Wallet('user-1', 'Main')
 
     expect(wallet.name).toBe('Main')
     expect(wallet.balance).toBe(0)
@@ -30,11 +30,11 @@ describe('Wallet', () => {
   })
 
   it('não permite criar wallet com nome vazio', () => {
-    expect(() => Wallet.create('user-1', '')).toThrow()
+    expect(() => new Wallet('user-1', '')).toThrow()
   })
 
   it('deposita e registra evento de domínio', () => {
-    const wallet = Wallet.create('user-1', 'Main')
+    const wallet = new Wallet('user-1', 'Main')
 
     wallet.deposit(100)
 
@@ -45,7 +45,7 @@ describe('Wallet', () => {
   })
 
   it('não permite saque acima do saldo', () => {
-    const wallet = Wallet.create('user-1', 'Main')
+    const wallet = new Wallet('user-1', 'Main')
 
     expect(() => wallet.withdraw(50)).toThrow(InsufficientBalanceError)
   })

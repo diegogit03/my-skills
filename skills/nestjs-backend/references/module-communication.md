@@ -107,7 +107,7 @@ Publisher in-memory (dev) e registro via DI:
 ```typescript
 // src/common/infrastructure/events/event-publisher.module.ts
 import { Injectable, Module } from '@nestjs/common'
-import { EventEmitter2 } from '@nestjs/event-emitter'
+import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter'
 import { EventPublisher, EVENT_PUBLISHER } from '@common/contracts'
 
 @Injectable()

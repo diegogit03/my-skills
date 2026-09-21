@@ -58,3 +58,50 @@ Use estrutura por subdomínio (profundidade 3: `<module>/<subdomain>/<aggregate>
 6. Pode falhar isoladamente?
 
 **Default: flat.** Red flags para NÃO dividir: "parece grande demais", "para facilitar achar código" (resolva com nomes de agregado, não pastas de camada), features fortemente acopladas, espelhar o organograma.
+
+### Exemplo: módulo `content` com subdomínios
+
+Um módulo de conteúdo que gerencia tanto o catálogo (área pública, leitura intensiva, cache agressivo) quanto o gerenciamento editorial (área admin, escrita, autorização própria) atende aos critérios de persona, autorização, escala e execução. Em vez de um `content/` flat com 10+ agregados misturados, organize por subdomínio:
+
+```
+content/
+  catalog/                        # subdomínio: leitura pública
+    products/
+      product.entity.ts
+      product.repository.ts
+      product.service.ts
+      product.controller.ts
+      __tests__/
+        product.e2e-spec.ts
+    categories/
+      category.entity.ts
+      category.repository.ts
+      category.service.ts
+      category.controller.ts
+      __tests__/
+    catalog.module.ts             # registra providers do subdomínio
+  editorial/                      # subdomínio: gestão (admin)
+    drafts/
+      draft.entity.ts
+      draft.repository.ts
+      draft.service.ts
+      draft.controller.ts
+      __tests__/
+    publishing/
+      publish.entity.ts
+      publish.repository.ts
+      publish.service.ts
+      publish.controller.ts
+      __tests__/
+    editorial.module.ts
+  migrations/
+  content.module.ts               # compõe os subdomínios
+```
+
+**Regras entre subdomínios:**
+
+- Cada subdomínio possui seus repositórios e registra seus providers no próprio `<subdomain>.module.ts`.
+- O módulo raiz (`content.module.ts`) apenas importa os módulos dos subdomínios.
+- Leitura entre subdomínios **não** acessa repositório alheio — exponha o que for necessário via service público do subdomínio (ou facade de delegação) e consuma pelo import `@modules/content`.
+
+Contra-exemplo: `billing` com `invoices/` + `payments/` + `refunds/` que compartilham a mesma transação ACID — acoplamento alto indica que pertencem ao mesmo subdomínio; mantenha flat.

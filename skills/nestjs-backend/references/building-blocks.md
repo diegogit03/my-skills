@@ -81,7 +81,7 @@ Repositórios são **classes concretas** `@Injectable()` em `persistence/reposit
 Todo repositório **estende obrigatoriamente** o `BaseRepository` do `common`, que fornece os métodos genéricos de CRUD (`findById`, `findAll`, `save`, `delete`). O repositório do módulo adiciona apenas o que é específico do domínio.
 
 ```typescript
-// src/common/infrastructure/repository/base.repository.ts
+// src/common/typeorm/base.repository.ts
 import type { Repository, ObjectLiteral } from 'typeorm'
 
 export abstract class BaseRepository<T extends ObjectLiteral> {
@@ -110,7 +110,7 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { BaseRepository } from '@common/infrastructure/repository/base.repository'
+import { BaseRepository } from '@common/typeorm/base.repository'
 import { Wallet } from '../../core/entities/wallet.entity'
 
 @Injectable()

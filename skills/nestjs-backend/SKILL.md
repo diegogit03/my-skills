@@ -65,6 +65,6 @@ finance/
 | ------------- | ----------------------------------- | -------------------------------------------------- |
 | Autenticação  | `references/authentication.md`      | Configurar auth: Personal Access Token, guards e decorators |
 | Testes        | `references/testing-patterns.md`    | Escrever testes de entidade, serviço ou E2E (Vitest) |
-| Comunicação   | `references/module-communication.md`| Implementar eventos entre módulos, publishers e handlers   |
+| Comunicação   | `references/module-communication.md`| Eventos, publishers, handlers ou chamadas síncronas entre módulos (public API)   |
 | Arquitetura   | `references/architecture-patterns.md` | Layer architecture e feature folders: estrutura, escolha do padrão e registro do módulo |
 | Building Blocks | `references/building-blocks.md`     | Serviços, entidades TypeORM e repositórios (incl. base repository) |

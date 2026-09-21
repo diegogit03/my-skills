@@ -57,14 +57,6 @@ finance/
 9. **Observabilidade**: Monitoramento e tracing a nível de módulo
 10. **Resiliência**: Falhas em um módulo não cascam
 
-Controllers -> Services -> Repository/Entity
-
-Entidades Ricas
-
-Services = orquestradores
-
-Separação Vertical > Separação Horizontal
-
 ## Referências
 
 | Tópico        | Referência                          | Carregar Quando                                    |

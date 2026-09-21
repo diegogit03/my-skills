@@ -1,5 +1,5 @@
 ---
-name: pragmatic-backend
+name: nestjs-backend
 description: Orientação para construção de APIs Backend com Nest.JS
 ---
 

@@ -9,7 +9,7 @@ Skills para agentes de código (OpenCode, Claude Code, etc.), instaláveis via [
 npx skills add diegogit03/my-skills
 
 # instalar uma skill específica
-npx skills add diegogit03/my-skills --skill pragmatic-backend
+npx skills add diegogit03/my-skills --skill nestjs-backend
 
 # listar as skills disponíveis no repo
 npx skills add diegogit03/my-skills --list
@@ -19,4 +19,4 @@ npx skills add diegogit03/my-skills --list
 
 | Skill | Descrição |
 |-------|-----------|
-| [`pragmatic-backend`](skills/pragmatic-backend) | Orientação para construção de APIs Backend com Nest.JS |
+| [`nestjs-backend`](skills/nestjs-backend) | Orientação para construção de APIs Backend com Nest.JS |

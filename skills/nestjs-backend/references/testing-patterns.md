@@ -5,22 +5,21 @@
 ## Sumário
 
 1. Testes de Serviço (linha ~14)
-2. Testes de Integração de Módulo (linha ~76)
-3. Testes E2E (linha ~104)
-4. Mock Factories (linha ~164)
+2. Testes E2E (linha ~76)
+3. Mock Factories (linha ~128)
 
 ---
 
 ## 1. Testes de Serviço
 
-Teste a lógica de negócio por meio de serviços. Mocke os repositórios (classes concretas) via `useValue`, não o TypeORM.
+Teste a lógica de negócio por meio de serviços. Mocke os repositórios (classes concretas) via `useValue`, não o TypeORM. O spec fica no mesmo nível do service.
 
 ```typescript
-// src/modules/finance/core/service/__tests__/wallet.service.spec.ts
+// src/modules/finance/core/service/wallet.service.spec.ts
 import { describe, it, beforeEach, afterEach, vi, expect } from 'vitest'
 import { Test } from '@nestjs/testing'
 import type { TestingModule } from '@nestjs/testing'
-import { WalletService } from '../wallet.service'
+import { WalletService } from './wallet.service'
 import { WalletRepository } from '../../../persistence/repository/wallet.repository'
 import { EVENT_PUBLISHER } from '@common/contracts'
 
@@ -73,57 +72,17 @@ describe('WalletService', () => {
 
 ---
 
-## 2. Testes de Integração de Módulo
+## 2. Testes E2E (por módulo)
 
-Teste que os módulos funcionam corretamente DENTRO de suas fronteiras. Estes testes verificam que DI, repositórios e serviços funcionam juntos.
-
-```typescript
-// src/modules/finance/__tests__/finance.module.integration.spec.ts
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import { Test } from '@nestjs/testing'
-import type { TestingModule } from '@nestjs/testing'
-import { FinanceModule } from '../finance.module'
-import { WalletService } from '../core/service/wallet.service'
-import { WalletRepository } from '../persistence/repository/wallet.repository'
-
-describe('FinanceModule (integração)', () => {
-  let module: TestingModule
-
-  beforeAll(async () => {
-    module = await Test.createTestingModule({
-      imports: [FinanceModule],
-    }).compile()
-  })
-
-  afterAll(async () => {
-    await module.close()
-  })
-
-  it('resolve WalletService', () => {
-    const service = module.get(WalletService)
-    expect(service).toBeDefined()
-  })
-
-  it('resolve WalletRepository', () => {
-    const walletRepository = module.get(WalletRepository)
-    expect(walletRepository).toBeDefined()
-  })
-})
-```
-
----
-
-## 3. Testes E2E
-
-Teste o ciclo de vida HTTP completo, incluindo auth, validação e resposta.
+Teste o ciclo de vida HTTP completo, incluindo auth, validação e resposta. Ficam por módulo, em `src/modules/[m]/__tests__/`.
 
 ```typescript
-// test/finance.e2e-spec.ts
+// src/modules/finance/__tests__/finance.e2e-spec.ts
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { INestApplication, ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import request from 'supertest'
-import { AppModule } from '../src/app.module'
+import { AppModule } from '../../../app.module'
 
 describe('Finance (e2e)', () => {
   let app: INestApplication
@@ -171,7 +130,7 @@ describe('Finance (e2e)', () => {
 
 ---
 
-## 4. Mock Factories
+## 3. Mock Factories
 
 Criadores de mocks reutilizáveis para configuração consistente de testes.
 
@@ -201,9 +160,8 @@ export function createMockService(methods: string[]) {
 
 | Nível de Teste | O Que Testar                      | Onde                                             | Dependências             |
 | -------------- | --------------------------------- | ------------------------------------------------ | ------------------------ |
-| Serviço        | Regras de negócio via serviços    | `src/modules/[m]/core/service/__tests__/`        | Repos + eventos mockados |
-| Integração     | DI do módulo, cadeia completa     | `src/modules/[m]/__tests__/`                     | Módulo real, banco de teste |
-| E2E            | Ciclo de vida HTTP completo       | `test/`                                          | App completo, banco de teste |
+| Serviço        | Regras de negócio via serviços    | `src/modules/[m]/core/service/*.spec.ts`         | Repos + eventos mockados |
+| E2E            | Ciclo de vida HTTP completo       | `src/modules/[m]/__tests__/`                     | App completo, banco de teste |
 
 ## Configuração
 
@@ -213,10 +171,10 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
+    include: ['src/**/*.spec.ts'],
     projects: [
-      { test: { name: 'unit', include: ['src/**/*.spec.ts'] } },
-      { test: { name: 'e2e', include: ['test/**/*.e2e-spec.ts'], testTimeout: 30_000 } },
+      { test: { name: 'unit', include: ['src/**/*.spec.ts'], exclude: ['src/**/__tests__/**'] } },
+      { test: { name: 'e2e', include: ['src/**/__tests__/**/*.e2e-spec.ts'], testTimeout: 30_000 } },
     ],
   },
 })

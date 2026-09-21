@@ -16,7 +16,7 @@
 Quando a entidade **não é anêmica** (contém comportamento de negócio, invariants e factories), teste-a isoladamente como objeto puro — sem Nest, sem mocks.
 
 ```typescript
-// src/modules/finance/core/domain/wallet.entity.spec.ts
+// src/modules/finance/core/wallet.entity.spec.ts
 import { describe, it, expect } from 'vitest'
 import { Wallet } from './wallet.entity'
 

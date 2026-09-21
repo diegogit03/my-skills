@@ -6,8 +6,7 @@ Componentes fundamentais de um módulo: serviços, entidades e repositórios. Pa
 
 1. Serviços (linha ~10)
 2. Entidades (linha ~35)
-3. Repositório (linha ~55)
-4. Repositório Base no Common (linha ~95)
+3. Repositório (linha ~55, com Repositório Base obrigatório)
 
 ---
 
@@ -79,43 +78,7 @@ export class Wallet {
 
 Repositórios são **classes concretas** `@Injectable()` em `persistence/repository/` — sem interfaces nem tokens Symbol. O NestJS resolve a injeção pelo tipo da classe.
 
-```typescript
-// src/modules/finance/persistence/repository/wallet.repository.ts
-import { Injectable } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import { Wallet } from '../../core/entities/wallet.entity'
-
-@Injectable()
-export class WalletRepository {
-  constructor(
-    @InjectRepository(Wallet)
-    private readonly repository: Repository<Wallet>,
-  ) {}
-
-  async findById(id: string): Promise<Wallet | null> {
-    return this.repository.findOneBy({ id })
-  }
-
-  async findAll(): Promise<Wallet[]> {
-    return this.repository.find()
-  }
-
-  async save(wallet: Wallet): Promise<Wallet> {
-    return this.repository.save(wallet)
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.repository.delete(id)
-  }
-}
-```
-
----
-
-## 4. Repositório Base no Common
-
-Para evitar repetição, crie uma classe abstrata base em `common` com métodos genéricos (CRUD) e deixe os repositórios dos módulos somente com métodos específicos do domínio.
+Todo repositório **estende obrigatoriamente** o `BaseRepository` do `common`, que fornece os métodos genéricos de CRUD (`findById`, `findAll`, `save`, `delete`). O repositório do módulo adiciona apenas o que é específico do domínio.
 
 ```typescript
 // src/common/infrastructure/repository/base.repository.ts
@@ -141,8 +104,6 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
   }
 }
 ```
-
-O repositório do módulo estende a base, passando a entidade para o TypeORM, e adiciona apenas o que é específico:
 
 ```typescript
 // src/modules/finance/persistence/repository/wallet.repository.ts

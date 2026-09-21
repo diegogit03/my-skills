@@ -3,7 +3,7 @@
 ## Sumário
 
 1. Public API — Comunicação Síncrona (linha ~9)
-2. Eventos — Comunicação Assíncrona (linha ~90)
+2. Eventos — Comunicação Síncrona In-Process (linha ~90)
 
 ---
 
@@ -87,9 +87,9 @@ export class WalletService {
 
 ---
 
-## 2. Eventos — Comunicação Assíncrona
+## 2. Eventos — Comunicação Síncrona In-Process
 
-Para notificações entre módulos que **não precisam de resposta na mesma requisição** (ex.: "usuário criado" → configurar finance). Eventos aqui são simples notificações fire-and-forget — não são necessariamente eventos de domínio: podem indicar fluxos internos, integrações ou efeitos colaterais.
+Para desacoplar reações dentro do **mesmo processo**: o handler executa na mesma requisição, na mesma instância (via `EventEmitter2`, execução síncrona). Não há fila nem entrega entre processos. Eventos aqui são simples notificações — não são necessariamente eventos de domínio: podem indicar fluxos internos, integrações ou efeitos colaterais.
 
 Interface única no `common`:
 
@@ -102,7 +102,7 @@ export interface EventPublisher {
 export const EVENT_PUBLISHER = Symbol('EventPublisher')
 ```
 
-Publisher in-memory (dev) e registro via DI:
+Publisher in-memory e registro via DI:
 
 ```typescript
 // src/common/infrastructure/events/event-publisher.module.ts
@@ -150,7 +150,7 @@ export class WalletService {
 }
 ```
 
-Outros módulos reagem com handlers `@OnEvent` — sempre idempotentes:
+Outros módulos reagem com handlers `@OnEvent` — executam na mesma requisição, então devem ser rápidos e idempotentes:
 
 ```typescript
 // src/modules/notifications/handlers/on-wallet-created.handler.ts
@@ -173,5 +173,5 @@ export class OnWalletCreatedHandler {
 
 - Nome em notação de pontos: `module.aggregate.action`
 - Payload apenas com dados serializáveis (primitivos, IDs) — nunca entidades de domínio
-- Handler reage ao payload, sempre idempotente (use IDs como chave de deduplicação)
-- O publisher in-memory não sobrevive a restarts nem escala entre instâncias — em produção, troque a implementação (Redis, fila) via DI sem mudar o contrato
+- Handler reage ao payload, rápido e idempotente (executa na mesma requisição)
+- Eventos são in-process: mesma instância, mesma requisição — para integrações que exigem entrega garantida entre processos, use a Public API (ou avalie filas mais tarde)

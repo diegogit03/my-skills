@@ -12,7 +12,7 @@ Módulos seguem **Feature Folders** organizados por **flat-by-aggregate**: 1 con
 
 ## 1. Feature Folders — Flat-by-Aggregate
 
-Inspirado em [evolutionary-modular-architecture](../../inspirations/evolutionary-modular-architecture/references/flat-by-aggregate.md): `ls module/` revela o domínio (Screaming Architecture), não o framework.
+Organização flat-by-aggregate: `ls module/` revela o domínio (Screaming Architecture), não o framework.
 
 ```
 finance/

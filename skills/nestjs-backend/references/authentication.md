@@ -2,25 +2,28 @@
 
 O padrão recomendado é **Personal Access Token (PAT) opaco** — tokens aleatórios, prefixados e revogáveis, armazenados com hash no banco. Sem dependência de Passport nem de assinatura JWT: o token é a própria credencial, validado por lookup no banco.
 
+> **O nome do módulo não precisa ser `identity`.** É apenas o nome usado nos exemplos — adapte ao contexto do projeto (`auth`, `accounts`, `users`, `tenants`…), incluindo os caminhos (`src/modules/<modulo>/...`), os nomes das classes e o prefixo do token. O que é fixo é a estrutura: os tokens pertencem ao módulo que define identidade/sessões, e nada fora dele acessa seus detalhes internos.
+
+Consequência dessa regra: o guard vive em `common` e é **agnóstico de módulo** — ele não importa nenhuma classe de `@modules/*`. A validação do token acontece por indireção, via padrão **Public API** (ver `module-communication.md`): a interface e o token de injeção ficam em `@common/contracts/api/`, o módulo dono dos tokens os implementa e registra. Renomear, mover ou substituir o módulo de identidade não exige nenhuma mudança no guard.
+
 ## Sumário
 
-1. Entidade e Tabela de Tokens (linha ~10)
-2. Geração e Hash do Token (linha ~65)
-3. Token Service (linha ~105)
-4. Auth Guard (linha ~155)
-5. Decorators (linha ~205)
-6. Roles Guard (linha ~220)
-7. Implementação do Repositório com TypeORM (linha ~240)
-8. Configuração do Módulo de Auth (linha ~275)
-9. Aplicar Guards Globalmente (linha ~295)
-10. Uso nos Controllers (linha ~310)
-11. Rotação e Revogação (linha ~340)
+1. Entidade e Tabela de Tokens (linha ~24)
+2. Geração e Hash do Token (linha ~72)
+3. Token Service (linha ~100)
+4. Auth Guard (linha ~153)
+5. Decorators (linha ~209)
+6. Implementação do Repositório com TypeORM (linha ~221)
+7. Configuração do Módulo de Auth (linha ~259)
+8. Aplicar Guards Globalmente (linha ~303)
+9. Uso nos Controllers (linha ~315)
+10. Rotação e Revogação (linha ~348)
 
 ---
 
 ## 1. Entidade e Tabela de Tokens
 
-Tokens pertencem ao módulo de identidade e são prefixados com o nome do módulo. A entidade de domínio é a **própria entidade TypeORM** — não há entidade de domínio pura separada; métodos de domínio (como `isActive`) vivem na própria entidade.
+Tokens pertencem ao módulo que define identidade/sessões (`identity` nestes exemplos — adapte o nome ao seu contexto) e são prefixados com um identificador do tipo de token (ex.: `pat_`, de Personal Access Token). A entidade de domínio é a **própria entidade TypeORM** — não há entidade de domínio pura separada; métodos de domínio (como `isActive`) vivem na própria entidade.
 
 ```typescript
 // src/modules/identity/session/session.entity.ts
@@ -149,20 +152,31 @@ export class SessionService {
 
 ## 4. Auth Guard
 
-Guard nativo NestJS — sem Passport. Extrai o `Bearer` token, valida contra o banco e anexa o usuário à requisição.
+Guard nativo NestJS — sem Passport. Vive em `common` e é **agnóstico de módulo**: não importa nada de `@modules/*`. A validação é feita por indireção via Public API — o guard injeta o contrato `AuthenticationPublicApi` e o módulo dono dos tokens o implementa (seção 8). Extração do `Bearer` token, delegação da validação e anexação do principal à requisição são totalmente genéricas.
+
+Contrato publicado em `@common/contracts/api/` (regras do padrão em `module-communication.md`):
 
 ```typescript
-// src/common/infrastructure/guards/session-auth.guard.ts
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common'
+// src/common/contracts/api/authentication.api.ts
+export interface AuthenticationPublicApi {
+  authenticate(token: string): Promise<{ userId: string; tokenId: string } | null>
+}
+
+export const AUTHENTICATION_PUBLIC_API = Symbol('AuthenticationPublicApi')
+```
+
+```typescript
+// src/common/infrastructure/guards/bearer-auth.guard.ts
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Inject } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { IS_PUBLIC_KEY } from '@common/decorators/public.decorator'
-import { SessionService } from '@modules/identity'
+import { IS_PUBLIC_KEY } from '@common/infrastructure/decorators/public.decorator'
+import { AUTHENTICATION_PUBLIC_API, AuthenticationPublicApi } from '@common/contracts/api/authentication.api'
 
 @Injectable()
-export class SessionAuthGuard implements CanActivate {
+export class BearerAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly sessionService: SessionService,
+    @Inject(AUTHENTICATION_PUBLIC_API) private readonly authentication: AuthenticationPublicApi,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -179,12 +193,12 @@ export class SessionAuthGuard implements CanActivate {
     }
 
     const token = authHeader.slice('Bearer '.length).trim()
-    const record = await this.tokenService.authenticate(token)
-    if (!record) {
+    const principal = await this.authentication.authenticate(token)
+    if (!principal) {
       throw new UnauthorizedException('Token inválido ou ausente')
     }
 
-    request.user = { userId: record.userId, tokenId: record.id }
+    request.user = principal
     return true
   }
 }
@@ -200,38 +214,11 @@ import { SetMetadata } from '@nestjs/common'
 
 export const IS_PUBLIC_KEY = 'isPublic'
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true)
-
-// src/common/infrastructure/decorators/roles.decorator.ts
-export const ROLES_KEY = 'roles'
-export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles)
 ```
 
 ---
 
-## 6. Roles Guard
-
-```typescript
-// src/common/infrastructure/guards/roles.guard.ts
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-
-  canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ])
-    if (!requiredRoles) return true
-
-    const { user } = context.switchToHttp().getRequest()
-    return requiredRoles.includes(user.role)
-  }
-}
-```
-
----
-
-## 7. Implementação do Repositório com TypeORM
+## 6. Implementação do Repositório com TypeORM
 
 Repositório como **classe concreta** `@Injectable()` na pasta do agregado (`session.repository.ts`) — sem interface nem token Symbol. Trabalha diretamente com a entidade TypeORM `Session` (session.entity.ts), que também é a entidade de domínio.
 
@@ -269,46 +256,66 @@ export class SessionRepository {
 
 ---
 
-## 8. Configuração do Módulo de Auth
+## 7. Configuração do Módulo de Auth
+
+O módulo dono dos tokens implementa o contrato da seção 4 e o registra no token de injeção. Nada fora do módulo importa `SessionService` — consumidores (incluindo o guard) usam apenas `AUTHENTICATION_PUBLIC_API`.
+
+```typescript
+// src/modules/identity/authentication.api.ts
+import { Injectable } from '@nestjs/common'
+import { AUTHENTICATION_PUBLIC_API, AuthenticationPublicApi } from '@common/contracts/api/authentication.api'
+import { SessionService } from './session/session.service'
+
+@Injectable()
+export class IdentityAuthenticationApi implements AuthenticationPublicApi {
+  constructor(private readonly sessionService: SessionService) {}
+
+  async authenticate(token: string) {
+    const session = await this.sessionService.authenticate(token)
+    if (!session) return null
+    return { userId: session.userId, tokenId: session.id } // DTO plano, nunca a entidade
+  }
+}
+```
 
 ```typescript
 // src/modules/identity/identity.module.ts
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { Session } from './session/session.entity'
+import { AUTHENTICATION_PUBLIC_API } from '@common/contracts/api/authentication.api'
+import { IdentityAuthenticationApi } from './authentication.api'
 
 @Module({
   imports: [TypeOrmModule.forFeature([Session])],
   providers: [
     SessionService,
     SessionRepository,
+    IdentityAuthenticationApi,
+    { provide: AUTHENTICATION_PUBLIC_API, useExisting: IdentityAuthenticationApi },
   ],
-  exports: [SessionService],
+  exports: [AUTHENTICATION_PUBLIC_API],
 })
 export class IdentityModule {}
 ```
 
 ---
 
-## 9. Aplicar Guards Globalmente
+## 8. Aplicar Guards Globalmente
 
 ```typescript
 // src/app.module.ts
 @Module({
-  providers: [
-    { provide: APP_GUARD, useClass: SessionAuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
-  ],
+  providers: [{ provide: APP_GUARD, useClass: BearerAuthGuard }],
 })
 export class AppModule {}
 ```
 
 ---
 
-## 10. Uso nos Controllers
+## 9. Uso nos Controllers
 
 ```typescript
-@Controller('identity/sessions')
-@UseGuards(SessionAuthGuard)
+@Controller('identity/sessions') // guard já é global (seção 8) — rotas são privadas por padrão
 export class SessionController {
   constructor(private readonly sessionService: SessionService) {}
 
@@ -338,7 +345,7 @@ export class SessionController {
 
 ---
 
-## 11. Rotação e Revogação
+## 10. Rotação e Revogação
 
 - **Revogação:** sempre explícita (DELETE) ou via expiração. Tokens revogados falham imediatamente no lookup.
 - **Rotação:** crie um novo token, valide o uso do novo, depois revogue o antigo. Não há janela de sobreposição automática.
@@ -348,10 +355,9 @@ export class SessionController {
 
 | Ação           | Decorator                           |
 | -------------- | ----------------------------------- |
-| Proteger rota  | `@UseGuards(SessionAuthGuard)`|
+| Proteger rota  | automática — guard global (seção 8) |
 | Rota pública   | `@Public()`                         |
 | Obter usuário  | `@Request() req → req.user`         |
-| Exigir role    | `@Roles('admin')`                   |
 
 ## Decisões de Segurança
 

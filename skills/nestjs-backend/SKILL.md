@@ -5,13 +5,15 @@ description: Orientação para construção de APIs Backend com Nest.JS
 
 # Pragmatic NestJS
 
+Esta skill propõe a implementação de um **monolito modular** — uma aplicação única que mantém fronteiras claras entre módulos independentes, prontos para extração futura em microsserviços se necessário.
+
 ## Estrutura do Projeto
 
 ```
 src/
   common/                  # Shared kernel — nada de lógica de negócio aqui
-    contracts/             # Contratos entre módulos (interfaces de public API, classes de eventos)
-    infrastructure/        # Publishers, guards, decorators, testing utils
+    contracts/             # Infraestrutura — contratos entre módulos (interfaces de public API, classes de eventos)
+    infrastructure/        # Infraestrutura — publishers, guards, decorators, testing utils
   modules/                 # Módulos de domínio
     finance/
     identity/
@@ -24,6 +26,18 @@ Aliase de import (sempre use estes paths, nunca caminhos relativos entre módulo
 
 - `@common/*` → `src/common/*`
 - `@modules/<nome>` → `src/modules/<nome>`
+
+## Tipos de Módulos
+
+Os módulos classificam-se em **dois tipos principais**:
+
+| Tipo | Localização | Responsabilidade |
+| --- | --- | --- |
+| **Domínio** | `src/modules/<nome>/` | Lógica de negócio: entidades, agregados, serviços, controllers. Ex.: `finance`, `identity` |
+| **Infraestrutura** | `src/common/infrastructure/` e `src/common/contracts/` | Preocupações transversais: guards, decorators, publishers, contratos entre módulos, utilitários de teste |
+
+- **Módulos de domínio** são autocontidos e donos dos seus dados (nenhuma tabela compartilhada).
+- **Módulos de infraestrutura** são agnósticos de domínio — nunca importam de `@modules/*`.
 
 ## Padrões de Arquitetura de Módulo
 

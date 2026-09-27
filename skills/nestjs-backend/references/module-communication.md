@@ -113,10 +113,10 @@ export class WalletCreatedEvent implements AppEvent {
 }
 ```
 
-O publisher é uma **classe concreta** no `common` — mesmo padrão dos repositórios: injeta-se o tipo, sem interface nem token Symbol. O emit é feito pelo `eventName` da classe:
+O publisher é uma **classe concreta** — mesmo padrão dos repositórios: injeta-se o tipo, sem interface nem token Symbol. O emit é feito pelo `eventName` da classe. A localização do publisher e do módulo de eventos fica a critério do projeto (ex.: `src/common/`, `src/modules/events/`):
 
 ```typescript
-// src/common/infrastructure/events/event-publisher.ts
+// src/common/events/event-publisher.ts (ou local escolhido pelo projeto)
 import { Injectable } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { AppEvent } from '@common/contracts/events/app-event.interface'
@@ -129,25 +129,13 @@ export class EventPublisher {
     this.emitter.emit(event.eventName, event)
   }
 }
-
-// src/common/infrastructure/events/event-publisher.module.ts
-import { Module } from '@nestjs/common'
-import { EventEmitterModule } from '@nestjs/event-emitter'
-import { EventPublisher } from './event-publisher'
-
-@Module({
-  imports: [EventEmitterModule],
-  providers: [EventPublisher],
-  exports: [EventPublisher],
-})
-export class EventPublisherModule {}
 ```
 
 O módulo publica a instância do evento onde faz sentido (service, handler):
 
 ```typescript
 // src/modules/finance/wallets/wallet.service.ts
-import { EventPublisher } from '@common/infrastructure/events/event-publisher'
+import { EventPublisher } from '<caminho-escolhido>/event-publisher'
 import { WalletCreatedEvent } from '@common/contracts/events/finance.events'
 
 @Injectable()

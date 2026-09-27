@@ -12,8 +12,7 @@ Esta skill propõe a implementação de um **monolito modular** — uma aplicaç
 ```
 src/
   common/                  # Shared kernel — nada de lógica de negócio aqui
-    contracts/             # Infraestrutura — contratos entre módulos (interfaces de public API, classes de eventos)
-    infrastructure/        # Infraestrutura — publishers, guards, decorators, testing utils
+    contracts/             # Contratos entre módulos (interfaces de facade, classes de eventos)
   modules/                 # Módulos de domínio
     finance/
     identity/
@@ -34,10 +33,10 @@ Os módulos classificam-se em **dois tipos principais**:
 | Tipo | Localização | Responsabilidade |
 | --- | --- | --- |
 | **Domínio** | `src/modules/<nome>/` | Lógica de negócio: entidades, agregados, serviços, controllers. Ex.: `finance`, `identity` |
-| **Infraestrutura** | `src/common/infrastructure/` e `src/common/contracts/` | Preocupações transversais: guards, decorators, publishers, contratos entre módulos, utilitários de teste |
+| **Compartilhado** | `src/common/contracts/` | Contratos entre módulos: interfaces de facade, classes de eventos |
 
 - **Módulos de domínio** são autocontidos e donos dos seus dados (nenhuma tabela compartilhada).
-- **Módulos de infraestrutura** são agnósticos de domínio — nunca importam de `@modules/*`.
+- **Contratos** em `common/contracts` são a única especificação compartilhada — a organização interna de infraestrutura fica a critério do projeto.
 
 ## Padrões de Arquitetura de Módulo
 

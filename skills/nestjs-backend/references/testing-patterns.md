@@ -121,10 +121,10 @@ describe('Finance (e2e)', () => {
 
 ## 4. Mock Factories
 
-Criadores de mocks reutilizáveis para configuração consistente de testes.
+Criadores de mocks reutilizáveis para configuração consistente de testes. A localização fica a critério do projeto (ex.: `src/common/testing/`, `src/test-utils/`):
 
 ```typescript
-// src/common/infrastructure/testing/mock-factories.ts
+// src/common/testing/mock-factories.ts (ou local escolhido pelo projeto)
 import { vi } from 'vitest'
 
 export function createMockRepository() {

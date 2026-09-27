@@ -92,14 +92,14 @@ Para desacoplar reações dentro do **mesmo processo**: o handler executa na mes
 Cada evento é uma **classe com contrato tipado** no `common`. A base garante o nome do evento:
 
 ```typescript
-// src/common/contracts/events/app-event.interface.ts
+// src/common/events/app-event.interface.ts
 export interface AppEvent {
   readonly eventName: string
 }
 ```
 
 ```typescript
-// src/common/contracts/events/finance.events.ts
+// src/common/events/finance.events.ts
 import { AppEvent } from './app-event.interface'
 
 export class WalletCreatedEvent implements AppEvent {
@@ -113,13 +113,13 @@ export class WalletCreatedEvent implements AppEvent {
 }
 ```
 
-O publisher é uma **classe concreta** — mesmo padrão dos repositórios: injeta-se o tipo, sem interface nem token Symbol. O emit é feito pelo `eventName` da classe. A localização do publisher e do módulo de eventos fica a critério do projeto (ex.: `src/common/`, `src/modules/events/`):
+O publisher é uma **classe concreta** — mesmo padrão dos repositórios: injeta-se o tipo, sem interface nem token Symbol. O emit é feito pelo `eventName` da classe. A localização do publisher e do módulo de eventos fica a critério do projeto (ex.: `src/common/events/`):
 
 ```typescript
 // src/common/events/event-publisher.ts (ou local escolhido pelo projeto)
 import { Injectable } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { AppEvent } from '@common/contracts/events/app-event.interface'
+import { AppEvent } from '@common/events/app-event.interface'
 
 @Injectable()
 export class EventPublisher {
@@ -135,8 +135,8 @@ O módulo publica a instância do evento onde faz sentido (service, handler):
 
 ```typescript
 // src/modules/finance/wallets/wallet.service.ts
-import { EventPublisher } from '<caminho-escolhido>/event-publisher'
-import { WalletCreatedEvent } from '@common/contracts/events/finance.events'
+import { EventPublisher } from '@common/events/event-publisher'
+import { WalletCreatedEvent } from '@common/events/finance.events'
 
 @Injectable()
 export class WalletService {
@@ -158,7 +158,7 @@ Outros módulos reagem com handlers `@OnEvent` — executam na mesma requisiçã
 // src/modules/notifications/handlers/on-wallet-created.handler.ts
 import { Injectable, Logger } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { WalletCreatedEvent } from '@common/contracts/events/finance.events'
+import { WalletCreatedEvent } from '@common/events/finance.events'
 
 @Injectable()
 export class OnWalletCreatedHandler {
@@ -174,7 +174,7 @@ export class OnWalletCreatedHandler {
 
 **Regras dos eventos:**
 
-- Cada evento é uma **classe** em `@common/contracts/events/<modulo>.events.ts`, com `EVENT_NAME` estático em notação de pontos: `module.aggregate.action`
+- Cada evento é uma **classe** em `@common/events/<modulo>.events.ts`, com `EVENT_NAME` estático em notação de pontos: `module.aggregate.action`
 - Dados do evento são **propriedades tipadas** no construtor — apenas serializáveis (primitivos, IDs), nunca entidades de domínio
 - Publisher e handler trocam a **instância da classe** — nunca `payload: Record<string, unknown>` solto
 - Handler reage ao evento, rápido e idempotente (executa na mesma requisição)

@@ -11,12 +11,22 @@ Esta skill propõe a implementação de um **monolito modular** — uma aplicaç
 
 ```
 src/
-  common/                  # Shared kernel — módulos de infraestrutura
-    contracts/             # Contratos entre módulos (interfaces de facade, classes de eventos)
-    events/                # Sistema de eventos in-process
   modules/                 # Módulos de domínio
     finance/
+      public-api/          # Contratos públicos do módulo
+        finance.facade.ts  # Facade para comunicação com outros módulos
+        finance.events.ts  # Eventos publicados pelo módulo
+        finance.dtos.ts    # DTOs compartilhados
+      wallets/
+      transactions/
+      finance.module.ts
     identity/
+      public-api/
+        identity.facade.ts
+        identity.events.ts
+        identity.dtos.ts
+      session/
+      identity.module.ts
   app.module.ts
   main.ts
 test/                      # Testes E2E
@@ -24,20 +34,16 @@ test/                      # Testes E2E
 
 Aliase de import (sempre use estes paths, nunca caminhos relativos entre módulos):
 
-- `@common/*` → `src/common/*`
 - `@modules/<nome>` → `src/modules/<nome>`
 
 ## Tipos de Módulos
 
-Os módulos classificam-se em **dois tipos principais**:
-
 | Tipo | Localização | Responsabilidade |
 | --- | --- | --- |
-| **Domínio** | `src/modules/<nome>/` | Lógica de negócio: entidades, agregados, serviços, controllers. Ex.: `finance`, `identity` |
-| **Infraestrutura** | `src/common/<nome>/` | Preocupações transversais: contratos, eventos, utils compartilhados |
+| **Domínio** | `src/modules/<nome>/` | Lógica de negócio: entidades, agregados, serviços, controllers |
 
-- **Módulos de domínio** são autocontidos e donos dos seus dados (nenhuma tabela compartilhada).
-- **Módulos de infraestrutura** em `common/` são agnósticos de domínio — nunca importam de `@modules/*`.
+- Cada módulo é autocontido e dono dos seus dados (nenhuma tabela compartilhada).
+- A pasta `public-api/` expõe apenas o que outros módulos podem usar: facade, eventos e DTOs.
 
 ## Padrões de Arquitetura de Módulo
 

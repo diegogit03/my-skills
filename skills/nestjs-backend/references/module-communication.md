@@ -3,18 +3,18 @@
 ## Sumário
 
 1. Facade — Comunicação Síncrona (linha ~9)
-2. Eventos — Comunicação Síncrona In-Process (linha ~90)
+2. Eventos — Comunicação Síncrona In-Process (linha ~85)
 
 ---
 
 ## 1. Facade — Comunicação Síncrona
 
-Quando um módulo precisa de uma resposta **na mesma requisição** (consulta ou comando com retorno), use uma **Facade concreta**: uma classe `@Injectable()` que expõe a API pública do módulo, exportada diretamente pelo módulo. Não há interface intermediária nem Symbol — o consumidor importa o módulo e injeta a facade.
+Quando um módulo precisa de uma resposta **na mesma requisição** (consulta ou comando com retorno), use uma **Facade concreta**: uma classe `@Injectable()` que expõe a API pública do módulo, na pasta `public-api/`. Não há interface intermediária nem Symbol — o consumidor importa o módulo e injeta a facade.
 
 ```typescript
-// src/modules/identity/identity.facade.ts
+// src/modules/identity/public-api/identity.facade.ts
 import { Injectable } from '@nestjs/common'
-import { SessionService } from './session/session.service'
+import { SessionService } from '../session/session.service'
 
 @Injectable()
 export class IdentityFacade {
@@ -36,6 +36,8 @@ O módulo exporta a facade diretamente:
 
 ```typescript
 // src/modules/identity/identity.module.ts
+import { IdentityFacade } from './public-api/identity.facade'
+
 @Module({
   providers: [SessionService, IdentityFacade],
   exports: [IdentityFacade],
@@ -59,7 +61,7 @@ export class FinanceModule {}
 ```typescript
 // src/modules/finance/wallets/wallet.service.ts
 import { Injectable } from '@nestjs/common'
-import { IdentityFacade } from '@modules/identity/identity.facade'
+import { IdentityFacade } from '@modules/identity/public-api/identity.facade'
 
 @Injectable()
 export class WalletService {
@@ -76,7 +78,7 @@ export class WalletService {
 
 **Regras da Facade:**
 
-- A facade é uma **classe concreta** `@Injectable()` na pasta raiz do módulo (`<modulo>.facade.ts`)
+- A facade é uma **classe concreta** `@Injectable()` na pasta `public-api/` do módulo (`public-api/<modulo>.facade.ts`)
 - O módulo exporta **apenas a facade** — serviços internos ficam encapsulados
 - Métodos retornam **DTOs planos** (primitivos/serializáveis) — nunca entidades TypeORM nem classes de domínio
 - Interface enxuta: só o que outros módulos realmente usam (é a porta de entrada do módulo)
@@ -89,18 +91,13 @@ export class WalletService {
 
 Para desacoplar reações dentro do **mesmo processo**: o handler executa na mesma requisição, na mesma instância (via `EventEmitter2`, execução síncrona). Não há fila nem entrega entre processos. Eventos aqui são simples notificações — não são necessariamente eventos de domínio: podem indicar fluxos internos, integrações ou efeitos colaterais.
 
-Cada evento é uma **classe com contrato tipado** no `common`. A base garante o nome do evento:
+Cada evento é uma **classe com contrato tipado** na pasta `public-api/` do módulo que o publica. A interface base garante o nome do evento:
 
 ```typescript
-// src/common/events/app-event.interface.ts
+// src/modules/finance/public-api/finance.events.ts
 export interface AppEvent {
   readonly eventName: string
 }
-```
-
-```typescript
-// src/common/events/finance.events.ts
-import { AppEvent } from './app-event.interface'
 
 export class WalletCreatedEvent implements AppEvent {
   static readonly EVENT_NAME = 'finance.wallet.created'
@@ -113,13 +110,16 @@ export class WalletCreatedEvent implements AppEvent {
 }
 ```
 
-O publisher é uma **classe concreta** — mesmo padrão dos repositórios: injeta-se o tipo, sem interface nem token Symbol. O emit é feito pelo `eventName` da classe. A localização do publisher e do módulo de eventos fica a critério do projeto (ex.: `src/common/events/`):
+O publisher é uma **classe concreta** — mesmo padrão dos repositórios: injeta-se o tipo, sem interface nem token Symbol. O emit é feito pelo `eventName` da classe. A localização do publisher fica a critério do projeto (ex.: `src/common/events/` ou `src/modules/events/`):
 
 ```typescript
 // src/common/events/event-publisher.ts (ou local escolhido pelo projeto)
 import { Injectable } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { AppEvent } from '@common/events/app-event.interface'
+
+export interface AppEvent {
+  readonly eventName: string
+}
 
 @Injectable()
 export class EventPublisher {
@@ -136,7 +136,7 @@ O módulo publica a instância do evento onde faz sentido (service, handler):
 ```typescript
 // src/modules/finance/wallets/wallet.service.ts
 import { EventPublisher } from '@common/events/event-publisher'
-import { WalletCreatedEvent } from '@common/events/finance.events'
+import { WalletCreatedEvent } from '../public-api/finance.events'
 
 @Injectable()
 export class WalletService {
@@ -158,7 +158,7 @@ Outros módulos reagem com handlers `@OnEvent` — executam na mesma requisiçã
 // src/modules/notifications/handlers/on-wallet-created.handler.ts
 import { Injectable, Logger } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { WalletCreatedEvent } from '@common/events/finance.events'
+import { WalletCreatedEvent } from '@modules/finance/public-api/finance.events'
 
 @Injectable()
 export class OnWalletCreatedHandler {
@@ -174,7 +174,7 @@ export class OnWalletCreatedHandler {
 
 **Regras dos eventos:**
 
-- Cada evento é uma **classe** em `@common/events/<modulo>.events.ts`, com `EVENT_NAME` estático em notação de pontos: `module.aggregate.action`
+- Cada evento é uma **classe** em `public-api/<modulo>.events.ts` do módulo que o publica, com `EVENT_NAME` estático em notação de pontos: `module.aggregate.action`
 - Dados do evento são **propriedades tipadas** no construtor — apenas serializáveis (primitivos, IDs), nunca entidades de domínio
 - Publisher e handler trocam a **instância da classe** — nunca `payload: Record<string, unknown>` solto
 - Handler reage ao evento, rápido e idempotente (executa na mesma requisição)

@@ -44,7 +44,7 @@ export class WalletService {
 
 ## 2. Entidades
 
-As entidades de domínio são as **próprias entidades TypeORM** — não há entidade de domínio pura separada. Uma única classe por agregado, na pasta do agregado (`<aggregate>/<aggregate>.entity.ts`), com decorators TypeORM e podendo conter métodos de domínio.
+As entidades de domínio são as **próprias entidades TypeORM** — não há entidade de domínio pura separada. Uma única classe por agregado, na pasta do agregado (`<aggregate>/<aggregate>.entity.ts`), com decorators TypeORM. Entidades são **anêmicas**: apenas estrutura de dados (colunas e propriedades), sem lógica de negócio. Toda regra de negócio vive nos serviços.
 
 ```typescript
 // src/modules/finance/wallets/wallet.entity.ts

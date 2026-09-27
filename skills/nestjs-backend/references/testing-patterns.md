@@ -4,55 +4,13 @@
 
 ## Sumário
 
-1. Testes de Entidade (linha ~14)
-2. Testes de Serviço (linha ~55)
-3. Testes E2E (linha ~117)
-4. Mock Factories (linha ~175)
+1. Testes de Serviço (linha ~14)
+2. Testes E2E (linha ~75)
+3. Mock Factories (linha ~135)
 
 ---
 
-## 1. Testes de Entidade
-
-Quando a entidade **não é anêmica** (contém comportamento de negócio, invariants e factories), teste-a isoladamente como objeto puro — sem Nest, sem mocks.
-
-```typescript
-// src/modules/finance/wallets/wallet.entity.spec.ts
-import { describe, it, expect } from 'vitest'
-import { Wallet } from './wallet.entity'
-
-describe('Wallet', () => {
-  it('cria wallet com saldo inicial zero', () => {
-    const wallet = new Wallet('user-1', 'Main')
-
-    expect(wallet.name).toBe('Main')
-    expect(wallet.balance).toBe(0)
-    expect(wallet.id).toBeDefined()
-  })
-
-  it('não permite criar wallet com nome vazio', () => {
-    expect(() => new Wallet('user-1', '')).toThrow()
-  })
-
-  it('deposita e registra evento de domínio', () => {
-    const wallet = new Wallet('user-1', 'Main')
-
-    wallet.deposit(100)
-
-    expect(wallet.balance).toBe(100)
-    expect(wallet.pullDomainEvents()).toContainEqual(
-      expect.objectContaining({ type: 'wallet.deposited' }),
-    )
-  })
-
-  it('não permite saque acima do saldo', () => {
-    const wallet = new Wallet('user-1', 'Main')
-
-    expect(() => wallet.withdraw(50)).toThrow(InsufficientBalanceError)
-  })
-})
-```
-
-## 2. Testes de Serviço
+## 1. Testes de Serviço
 
 Teste a lógica de negócio por meio de serviços. Mocke os repositórios (classes concretas) via `useValue`, não o TypeORM. O spec fica na pasta do agregado, ao lado do service.
 
@@ -187,7 +145,6 @@ export function createMockService(methods: string[]) {
 
 | Nível de Teste | O Que Testar                      | Onde                                             | Dependências             |
 | -------------- | --------------------------------- | ------------------------------------------------ | ------------------------ |
-| Entidade       | Comportamento de domínio (rich)   | `src/modules/[m]/<aggregate>/*.spec.ts`          | Nenhuma (objeto puro)    |
 | Serviço        | Regras de negócio via serviços    | `src/modules/[m]/<aggregate>/*.spec.ts`          | Repos mockados |
 | E2E            | Ciclo de vida HTTP completo       | `src/modules/[m]/__tests__/`                     | App completo, banco de teste |
 

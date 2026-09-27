@@ -2,35 +2,22 @@
 
 ## Sumário
 
-1. Public API — Comunicação Síncrona (linha ~9)
+1. Facade — Comunicação Síncrona (linha ~9)
 2. Eventos — Comunicação Síncrona In-Process (linha ~90)
 
 ---
 
-## 1. Public API — Comunicação Síncrona
+## 1. Facade — Comunicação Síncrona
 
-Quando um módulo precisa de uma resposta **na mesma requisição** (consulta ou comando com retorno), use o padrão Public API: a interface fica em `@common/contracts`, o módulo dono implementa e o módulo consumidor depende apenas da interface — nunca da classe concreta.
-
-```typescript
-// src/common/contracts/api/identity.api.ts
-export interface IdentityPublicApi {
-  getUser(userId: string): Promise<{ id: string; name: string; email: string } | null>
-  userExists(userId: string): Promise<boolean>
-}
-
-export const IDENTITY_PUBLIC_API = Symbol('IdentityPublicApi')
-```
-
-O módulo dono implementa a interface e registra no token:
+Quando um módulo precisa de uma resposta **na mesma requisição** (consulta ou comando com retorno), use uma **Facade concreta**: uma classe `@Injectable()` que expõe a API pública do módulo, exportada diretamente pelo módulo. Não há interface intermediária nem Symbol — o consumidor importa o módulo e injeta a facade.
 
 ```typescript
-// src/modules/identity/identity.api.ts
+// src/modules/identity/identity.facade.ts
 import { Injectable } from '@nestjs/common'
-import { IdentityPublicApi, IDENTITY_PUBLIC_API } from '@common/contracts/api/identity.api'
 import { SessionService } from './session/session.service'
 
 @Injectable()
-export class IdentityApi implements IdentityPublicApi {
+export class IdentityFacade {
   constructor(private readonly sessionService: SessionService) {}
 
   async getUser(userId: string) {
@@ -43,30 +30,40 @@ export class IdentityApi implements IdentityPublicApi {
     return (await this.sessionService.findById(userId)) !== null
   }
 }
+```
 
+O módulo exporta a facade diretamente:
+
+```typescript
 // src/modules/identity/identity.module.ts
 @Module({
-  providers: [
-    SessionService,
-    { provide: IDENTITY_PUBLIC_API, useExisting: IdentityApi },
-  ],
-  exports: [IDENTITY_PUBLIC_API],
+  providers: [SessionService, IdentityFacade],
+  exports: [IdentityFacade],
 })
 export class IdentityModule {}
 ```
 
-O consumidor injeta apenas o token:
+O consumidor importa o módulo e injeta a facade:
+
+```typescript
+// src/modules/finance/finance.module.ts
+import { IdentityModule } from '@modules/identity/identity.module'
+
+@Module({
+  imports: [IdentityModule],
+  // ...
+})
+export class FinanceModule {}
+```
 
 ```typescript
 // src/modules/finance/wallets/wallet.service.ts
-import { Inject } from '@nestjs/common'
-import { IDENTITY_PUBLIC_API, IdentityPublicApi } from '@common/contracts/api/identity.api'
+import { Injectable } from '@nestjs/common'
+import { IdentityFacade } from '@modules/identity/identity.facade'
 
 @Injectable()
 export class WalletService {
-  constructor(
-    @Inject(IDENTITY_PUBLIC_API) private readonly identity: IdentityPublicApi,
-  ) {}
+  constructor(private readonly identity: IdentityFacade) {}
 
   async create(userId: string, name: string) {
     if (!(await this.identity.userExists(userId))) {
@@ -77,13 +74,14 @@ export class WalletService {
 }
 ```
 
-**Regras da Public API:**
+**Regras da Facade:**
 
-- A interface e o token vivem **sempre** em `@common/contracts/api/` — o consumidor não conhece o módulo provedor
+- A facade é uma **classe concreta** `@Injectable()` na pasta raiz do módulo (`<modulo>.facade.ts`)
+- O módulo exporta **apenas a facade** — serviços internos ficam encapsulados
 - Métodos retornam **DTOs planos** (primitivos/serializáveis) — nunca entidades TypeORM nem classes de domínio
-- Interface enxuta: só o que outros módulos realmente usam (é uma facade do módulo)
-- Síncrono dentro do agregado/módulo; entre módulos, use Public API apenas quando a resposta é necessária na mesma requisição
-- Erros de negócio do provedor são convertidos no adapter (`IdentityApi`) para erros de domínio do consumidor ou `null`/`Result`
+- Interface enxuta: só o que outros módulos realmente usam (é a porta de entrada do módulo)
+- Síncrono dentro do agregado/módulo; entre módulos, use facade apenas quando a resposta é necessária na mesma requisição
+- Erros de negócio do provedor são convertidos na facade para erros de domínio do consumidor ou `null`/`Result`
 
 ---
 
@@ -192,4 +190,4 @@ export class OnWalletCreatedHandler {
 - Dados do evento são **propriedades tipadas** no construtor — apenas serializáveis (primitivos, IDs), nunca entidades de domínio
 - Publisher e handler trocam a **instância da classe** — nunca `payload: Record<string, unknown>` solto
 - Handler reage ao evento, rápido e idempotente (executa na mesma requisição)
-- Eventos são in-process: mesma instância, mesma requisição — para integrações que exigem entrega garantida entre processos, use a Public API (ou avalie filas mais tarde)
+- Eventos são in-process: mesma instância, mesma requisição — para integrações que exigem entrega garantida entre processos, use a Facade (ou avalie filas mais tarde)

@@ -1,5 +1,5 @@
 ---
-name: nestjs-backend
+name: nestjs-modular-monolith
 description: Orientação para construção de APIs Backend com Nest.JS
 ---
 
